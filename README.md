@@ -1,2 +1,0 @@
-# VERIGEN: Verification Assertion Generator 
-VERIGEN (Verification Assertion Generator) is a Retrieval-Augmented Generation (RAG) application that generates SystemVerilog Assertions (SVAs) using the [VERT Dataset](https://github.com/AnandMenon12/VERT). 
