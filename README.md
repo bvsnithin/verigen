@@ -26,12 +26,14 @@ verigen/
 │
 ├── explore_dataset.py      # Load and inspect VERT_withRAG.json
 ├── build_index.py          # Build FAISS vector index for retrieval
+├── retriever.py            # Shared retrieval module (imported by other scripts)
+├── prompt_builder.py       # Assemble LLM prompts with retrieved few-shot examples
 │
 ├── retrieval/              # Auto-generated (not committed)
 │   ├── faiss.index         # Embedded vector index
 │   └── metadata.pkl        # Record metadata cache
 │
-└── VERT/                   # Dataset directory
+└── VERT/                   # Dataset directory (not committed)
     ├── VERT/
     │   └── VERT.json
     └── Supplimental_datasets/
@@ -87,9 +89,10 @@ Embeds all 20,000 RTL snippets using `sentence-transformers` and saves a FAISS i
 |------|-------------|--------|
 | 1 | Load and explore VERT_withRAG.json | Done |
 | 2 | Build FAISS retrieval index with sentence-transformers | Done |
-| 3 | LLM prompt layer with retrieved few-shot examples | Next |
-| 4 | Web application UI | Planned |
-| 5 | Fine-tuning / evaluation | Planned |
+| 3 | LLM prompt layer with retrieved few-shot examples | Done |
+| 4 | Connect to LLM API and generate assertions | Next |
+| 5 | Web application UI | Planned |
+| 6 | Fine-tuning / evaluation | Planned |
 
 ---
 
