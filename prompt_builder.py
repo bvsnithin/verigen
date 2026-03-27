@@ -44,7 +44,7 @@ prior conditions.
 6. Property names must be PascalCase and descriptive.
 
 REASONING STEP:
-Before writing the assertions, you MUST output an <analysis> block where you \
+Before writing the final structure, you MUST output an <analysis> block where you \
 break the RTL down like a verification engineer:
 <analysis>
   <timing>Specify if synchronous or combinational, and clock name</timing>
@@ -53,10 +53,22 @@ break the RTL down like a verification engineer:
 </analysis>
 
 OUTPUT FORMAT:
+Your final output MUST follow this exact structure after the analysis block:
+
 <analysis>...</analysis>
+
+1. Assertions
+```systemverilog
 property <PropertyName>;
   ...
-endproperty\
+endproperty
+```
+
+2. Explanation
+Briefly explain what each assertion checks.
+
+3. Edge cases covered
+List the edge cases (e.g., reset, default assignments, mutual exclusion).
 """
 
 
@@ -89,13 +101,25 @@ def format_few_shot_example(index: int, code: str, assertion: str) -> str:
     assertion_block = "\n".join(props)
     
     mock_reasoning = generate_mock_reasoning(code)
+    
+    # Synthesize the requested structure
+    has_sync = "posedge" in code or "negedge" in code
+    edge_cases = "- Resets\n- Combinational loops" if not has_sync else "- Reset and Default states\n- Clock transitions"
+    
+    output = f"{mock_reasoning}\n\n"
+    output += "1. Assertions\n"
+    output += f"```systemverilog\n{assertion_block}\n```\n\n"
+    output += "2. Explanation\n"
+    output += "- These properties check the main logical branches within the RTL.\n\n"
+    output += "3. Edge cases covered\n"
+    output += f"{edge_cases}"
 
     return (
         f"### Example {index}\n\n"
         f"RTL Code:\n"
         f"```systemverilog\n{code.strip()}\n```\n\n"
         f"Assertions Output:\n"
-        f"```systemverilog\n{mock_reasoning}\n\n{assertion_block}\n```"
+        f"{output}"
     )
 
 
@@ -153,11 +177,10 @@ def build_prompt(
         "YOUR TASK\n"
         "=========\n"
         "Analyze the following RTL, output your reasoning in an <analysis> block, \n"
-        "and then generate the SVA assertions.\n\n"
+        "and then generate the final output structured exactly as requested (1. Assertions, 2. Explanation, 3. Edge cases covered).\n\n"
         f"RTL Code:\n"
         f"```systemverilog\n{query_rtl.strip()}\n```\n\n"
         f"Assertions Output:\n"
-        f"```systemverilog\n"
     )
 
     return "\n".join(sections)
