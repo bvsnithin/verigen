@@ -23,8 +23,9 @@ from tqdm import tqdm
 # ─────────────────────────────────────────────────────────────
 BASE_DIR     = Path(__file__).parent
 DATASET_PATH = BASE_DIR / "VERT" / "Supplimental_datasets" / "VERT_withRAG.json"
-INDEX_PATH   = BASE_DIR / "retrieval" / "faiss.index"
-META_PATH    = BASE_DIR / "retrieval" / "metadata.pkl"
+RETRIEVAL_DIR = BASE_DIR / "retrieval"
+INDEX_PATH   = RETRIEVAL_DIR / "faiss.index"
+META_PATH    = RETRIEVAL_DIR / "metadata.pkl"
 MODEL_NAME   = "all-MiniLM-L6-v2"
 
 
@@ -32,14 +33,23 @@ MODEL_NAME   = "all-MiniLM-L6-v2"
 # DATASET
 # ─────────────────────────────────────────────────────────────
 def load_dataset(path: Path = DATASET_PATH) -> list[dict]:
-    """Load a JSONL file into a list of record dicts."""
-    records = []
+    """Load a JSON array or JSONL file into a list of record dicts."""
     with open(path, "r") as f:
+        # Read the first char to determine format
+        first_char = f.read(1)
+        f.seek(0)
+        
+        if first_char == '[':
+            # It's a standard JSON array
+            return json.load(f)
+        
+        # Otherwise assume JSONL
+        records = []
         for line in f:
             line = line.strip()
             if line:
                 records.append(json.loads(line))
-    return records
+        return records
 
 
 # ─────────────────────────────────────────────────────────────
@@ -72,32 +82,38 @@ def build_faiss_index(
     return index
 
 
-def save_index(index: faiss.IndexFlatIP, records: list[dict]) -> None:
+def save_index(index: faiss.IndexFlatIP, records: list[dict], dataset_name: str = "faiss") -> None:
     """Persist FAISS index and record metadata to disk."""
-    INDEX_PATH.parent.mkdir(exist_ok=True)
-    faiss.write_index(index, str(INDEX_PATH))
-    with open(META_PATH, "wb") as f:
+    RETRIEVAL_DIR.mkdir(exist_ok=True)
+    idx_path = RETRIEVAL_DIR / f"{dataset_name}.index"
+    meta_path = RETRIEVAL_DIR / f"{dataset_name}_metadata.pkl"
+    faiss.write_index(index, str(idx_path))
+    with open(meta_path, "wb") as f:
         pickle.dump(records, f)
 
 
 # ─────────────────────────────────────────────────────────────
 # INDEX: LOAD FROM CACHE
 # ─────────────────────────────────────────────────────────────
-def load_index() -> tuple[faiss.IndexFlatIP, list[dict]]:
+def load_index(dataset_name: str = "faiss") -> tuple[faiss.IndexFlatIP, list[dict]]:
     """Load the pre-built FAISS index and metadata from disk."""
-    if not INDEX_PATH.exists() or not META_PATH.exists():
+    idx_path = RETRIEVAL_DIR / f"{dataset_name}.index"
+    meta_path = RETRIEVAL_DIR / f"{dataset_name}_metadata.pkl"
+    if not idx_path.exists() or not meta_path.exists():
         raise FileNotFoundError(
-            "FAISS index not found. Run `python build_index.py` first."
+            f"FAISS index '{dataset_name}' not found. Run `python build_index.py` first, or build dynamically."
         )
-    index = faiss.read_index(str(INDEX_PATH))
-    with open(META_PATH, "rb") as f:
+    index = faiss.read_index(str(idx_path))
+    with open(meta_path, "rb") as f:
         records = pickle.load(f)
     return index, records
 
 
-def index_is_cached() -> bool:
+def index_is_cached(dataset_name: str = "faiss") -> bool:
     """Return True if a pre-built index exists on disk."""
-    return INDEX_PATH.exists() and META_PATH.exists()
+    idx_path = RETRIEVAL_DIR / f"{dataset_name}.index"
+    meta_path = RETRIEVAL_DIR / f"{dataset_name}_metadata.pkl"
+    return idx_path.exists() and meta_path.exists()
 
 
 # ─────────────────────────────────────────────────────────────

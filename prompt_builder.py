@@ -36,52 +36,66 @@ RULES:
 2. Use the overlapping implication operator `|->` to link the condition \
 to the expected assignment.
 3. For synchronous RTL (non-blocking assignments `<=`): prefix each property \
-with `@(posedge <clock>)` or `@(negedge <clock>)`. Use the clock signal \
-visible in the code or provided in context.
-4. For asynchronous / combinational RTL (blocking assignments `=`): \
-omit the clock clause entirely.
-5. Nest conditions correctly: inner `if` conditions must include the outer \
+with `@(posedge <clock>)` or `@(negedge <clock>)`.
+4. Nest conditions correctly: inner `if` conditions must include the outer \
 condition in the antecedent using `&&`.
-6. Cover the `else` / `default` branch using the negation `!` of all \
+5. Cover the `else` / `default` branch using the negation `!` of all \
 prior conditions.
-7. Property names must be PascalCase and descriptive of what is being \
-checked (e.g., `OutputValidWhenEnabled`, `ResetClearsCount`).
-8. Do NOT include `assert property(...)` lines, module wrappers, \
-or any explanation. Return ONLY the property blocks.
+6. Property names must be PascalCase and descriptive.
 
-OUTPUT FORMAT (strict):
+REASONING STEP:
+Before writing the assertions, you MUST output an <analysis> block where you \
+break the RTL down like a verification engineer:
+<analysis>
+  <timing>Specify if synchronous or combinational, and clock name</timing>
+  <conditions>List the if/else conditions</conditions>
+  <branches>List the case/assignment branches</branches>
+</analysis>
+
+OUTPUT FORMAT:
+<analysis>...</analysis>
 property <PropertyName>;
-  [optional: @(posedge/<negedge> <clock>)] <antecedent> |-> <consequent>;
+  ...
 endproperty\
 """
+
+
+def generate_mock_reasoning(code: str) -> str:
+    """Synthesize a mock structural reasoning block for few-shot examples."""
+    has_sync = "posedge" in code or "negedge" in code or "<=" in code
+    has_if = "if " in code or "if(" in code
+    has_case = "case" in code
+    
+    analysis = "  <timing>" + ("Synchronous" if has_sync else "Combinational") + "</timing>\n"
+    
+    cond_text = "Analyzed if/else structural conditions" if has_if else "No explicit if conditions"
+    branch_text = "Analyzed case branches" if has_case else ("Analyzed else branches" if "else" in code else "Direct assignments analyzed")
+    
+    analysis += f"  <conditions>{cond_text}</conditions>\n"
+    analysis += f"  <branches>{branch_text}</branches>\n"
+    
+    return f"<analysis>\n{analysis}</analysis>"
 
 
 def format_few_shot_example(index: int, code: str, assertion: str) -> str:
     """
     Format a single retrieved example as a labelled few-shot block.
-
-    Args:
-        index:     1-based example number shown in the prompt.
-        code:      The RTL code snippet from the dataset.
-        assertion: The ground-truth SVA assertion string.
-
-    Returns:
-        A formatted string block ready to be inserted into the prompt.
     """
-    # Clean up the assertion into one property per line for readability
     props = []
     for part in assertion.strip().split("endproperty"):
         part = part.strip()
         if part:
             props.append(part + " endproperty")
     assertion_block = "\n".join(props)
+    
+    mock_reasoning = generate_mock_reasoning(code)
 
     return (
         f"### Example {index}\n\n"
         f"RTL Code:\n"
         f"```systemverilog\n{code.strip()}\n```\n\n"
-        f"Assertions:\n"
-        f"```systemverilog\n{assertion_block}\n```"
+        f"Assertions Output:\n"
+        f"```systemverilog\n{mock_reasoning}\n\n{assertion_block}\n```"
     )
 
 
@@ -138,12 +152,11 @@ def build_prompt(
         "\n\n"
         "YOUR TASK\n"
         "=========\n"
-        "Generate complete SVA assertions for the following RTL code.\n"
-        "Follow all rules and match the style of the examples above.\n"
-        "Return ONLY the property blocks. No explanation.\n\n"
+        "Analyze the following RTL, output your reasoning in an <analysis> block, \n"
+        "and then generate the SVA assertions.\n\n"
         f"RTL Code:\n"
         f"```systemverilog\n{query_rtl.strip()}\n```\n\n"
-        f"Assertions:\n"
+        f"Assertions Output:\n"
         f"```systemverilog\n"
     )
 
