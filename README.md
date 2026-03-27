@@ -16,99 +16,92 @@ You paste in a block of RTL (like an `if/else` or `case` block), and the system:
 
 ---
 
-## Project Structure
+## Quick Start
 
-```
-verigen/
-├── venv/                   # Python virtual environment (not committed)
-├── requirements.txt        # Python dependencies
-├── README.md
-│
-├── explore_dataset.py      # Load and inspect VERT_withRAG.json
-├── build_index.py          # Build FAISS vector index for retrieval
-├── retriever.py            # Shared retrieval module (imported by other scripts)
-├── prompt_builder.py       # Assemble LLM prompts with retrieved few-shot examples
-│
-├── retrieval/              # Auto-generated (not committed)
-│   ├── faiss.index         # Embedded vector index
-│   └── metadata.pkl        # Record metadata cache
-│
-└── VERT/                   # Dataset directory (not committed)
-    ├── VERT/
-    │   └── VERT.json
-    └── Supplimental_datasets/
-        ├── VERT_withRAG.json
-        ├── ifdataset-else.json
-        ├── ifdataset-!else.json
-        ├── casedataset-if.json
-        └── ...
-```
+### 1. Prerequisites
+- Python 3.10+
+- [Ollama](https://ollama.com) installed and running.
+- An Ollama API Key (if using cloud models).
 
----
-
-## Setup
-
+### 2. Setup
 ```bash
-# 1. Clone the repo
-git clone <your-repo-url>
+# Clone the repository
+git clone https://github.com/bvsnithin/verigen.git
 cd verigen
 
-# 2. Create and activate virtual environment
+# Create and activate virtual environment
 python3 -m venv venv
-source venv/bin/activate     # On Windows: venv\Scripts\activate
+source venv/bin/activate
 
-# 3. Install dependencies
+# Install dependencies
 pip install -r requirements.txt
+
+# Setup API Key
+cp .env.example .env
+# Edit .env and paste your OLLAMA_API_KEY
 ```
 
----
-
-## Usage
-
-### Explore the dataset
-
+### 3. Generate Assertions
+Run the main pipeline demo:
 ```bash
-python explore_dataset.py
+python main.py
 ```
 
-Prints dataset stats and 5 sample RTL/assertion pairs so you can understand the data.
+---
 
-### Build the retrieval index
+## Project Structure
 
+Verified and organized for modularity:
+
+```text
+verigen/
+├── data/                    # All project data and search indexes
+│   ├── VERT/                # Source RTL/SVA dataset
+│   └── retrieval/           # Cached FAISS vector indexes
+├── src/                     # Core library logic
+│   ├── retriever.py         # FAISS management and search
+│   ├── prompt_builder.py    # Few-shot prompt engineering
+│   ├── classifier.py        # RTL structural analysis
+│   └── pipeline.py          # Unified RAG generation engine
+├── scripts/                 # Utility and maintenance scripts
+│   ├── build_index.py       # One-time FAISS index builder
+│   └── explore_dataset.py   # Dataset analysis tool
+├── main.py                  # Primary application entry point
+├── .env                     # Environment variables (API keys)
+└── requirements.txt         # Project dependencies
+```
+
+---
+
+## How it Works
+
+VeriGen uses a multi-stage **agentic pipeline** to ensure high-quality SVA generation:
+
+1.  **Structural Classification**: The `RTLClassifier` analyzes your input code to determine timing (synchronous/asynchronous) and branching logic (`if`, `else`, `case`).
+2.  **Targeted Retrieval**: Instead of searching a massive database, we dynamically select the best **supplemental dataset** matching your RTL structure and retrieve the top-3 most similar examples using FAISS.
+3.  **Chain-of-Thought (CoT) Reasoning**: We inject few-shot examples into the LLM (`kimi-k2.5`) and demand a structured `<analysis>` block before any code is written. The model must explain the timing, conditions, and branches it identified.
+4.  **Structured Output**: Every response contains:
+    *   **Assertions**: Formatted SystemVerilog property blocks.
+    *   **Explanation**: A clear breakdown of what is being checked.
+    *   **Edge Cases**: Verification of resets, default states, and mutual exclusivity.
+
+---
+
+## Maintenance Scripts
+
+### Build Search Indexes
+If you add new data or want to refresh the cache:
 ```bash
-python build_index.py
+python scripts/build_index.py
 ```
 
-Embeds all 20,000 RTL snippets using `sentence-transformers` and saves a FAISS index to `retrieval/`. This runs once and takes about 90 seconds. After that, results are instant.
+### Dataset Exploration
+To see samples and statistics of the underlying VERT dataset:
+```bash
+python scripts/explore_dataset.py
+```
 
 ---
 
-## Progress
-
-| Step | Description | Status |
-|------|-------------|--------|
-| 1 | Load and explore VERT_withRAG.json | Done |
-| 2 | Build FAISS retrieval index with sentence-transformers | Done |
-| 3 | LLM prompt layer with retrieved few-shot examples | Done |
-| 4 | Connect to LLM API and generate assertions | Next |
-| 5 | Web application UI | Planned |
-| 6 | Fine-tuning / evaluation | Planned |
-
----
-
-## Dataset
-
-The VERT dataset contains:
-
-- 20,000 total records (10,000 synchronous, 10,000 asynchronous)
-- Each record has: RTL code, ground-truth SVA assertions, synchronous flag, clock edge
-- Covers `if/else`, `case`, nested logic, and timing-aware patterns
-- Sourced from the paper: [VERT: A SystemVerilog Assertion Dataset to Improve Hardware Verification with LLMs](https://github.com/AnandMenon12/VERT)
-
----
-
-## Dependencies
-
-- `sentence-transformers` for embedding RTL code
-- `faiss-cpu` for fast vector similarity search
-- `numpy`, `tqdm` for data handling and progress display
+## Dataset Reference
+The system is built on the [VERT Dataset](https://github.com/AnandMenon12/VERT), containing 20,000 RTL/SVA pairs across synchronous and asynchronous domains.

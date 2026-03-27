@@ -21,30 +21,15 @@ from dotenv import load_dotenv
 from ollama import Client
 from sentence_transformers import SentenceTransformer
 
-from retriever import MODEL_NAME, load_index, retrieve
-from prompt_builder import SYSTEM_PROMPT, build_prompt
+from .retriever import MODEL_NAME, load_index, retrieve
+from .prompt_builder import SYSTEM_PROMPT, build_prompt
+from .classifier import RTLClassifier
 
 # Ensure environment variables are loaded
 load_dotenv()
 
 OLLAMA_MODEL = "kimi-k2.5"
 
-class RTLClassifier:
-    """Classifies RTL structurally to pick the best RAG dataset."""
-    @staticmethod
-    def classify(rtl: str) -> str:
-        has_sync = "posedge" in rtl or "negedge" in rtl or "<=" in rtl
-        has_if = "if " in rtl or "if(" in rtl
-        has_else = "else" in rtl
-        has_case = "case" in rtl
-        
-        if has_case:
-            base = "casedataset-if" if has_if else "casedataset-!if"
-        else:
-            base = "ifdataset-else" if has_else else "ifdataset-!else"
-            
-        suffix = "-synch.json" if has_sync else ".json"
-        return base + suffix
 
 
 class SVAGeneratorPipeline:
@@ -92,8 +77,8 @@ class SVAGeneratorPipeline:
             print(f"       [RAG] Loaded cached subset DB: {dataset_name} ({index.ntotal} vectors)")
         except FileNotFoundError:
             print(f"       [RAG] Cache miss. Building FAISS index for '{dataset_name}' on-the-fly...")
-            from retriever import BASE_DIR, build_faiss_index, save_index, load_dataset
-            dataset_path = BASE_DIR / "VERT" / "Supplimental_datasets" / dataset_json_name
+            from .retriever import ROOT_DIR, build_faiss_index, save_index, load_dataset
+            dataset_path = ROOT_DIR / "data" / "VERT" / "Supplimental_datasets" / dataset_json_name
             records = load_dataset(dataset_path)
             index = build_faiss_index(records, self.embed_model)
             save_index(index, records, dataset_name)

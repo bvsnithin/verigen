@@ -11,7 +11,8 @@ from pathlib import Path
 # ─────────────────────────────────────────────
 # 1. LOAD THE DATASET
 # ─────────────────────────────────────────────
-DATASET_PATH = Path(__file__).parent / "VERT" / "Supplimental_datasets" / "VERT_withRAG.json"
+ROOT_DIR      = Path(__file__).parent.parent
+DATASET_PATH  = ROOT_DIR / "data" / "VERT" / "Supplimental_datasets" / "VERT_withRAG.json"
 
 print("Loading VERT_withRAG.json ...")
 

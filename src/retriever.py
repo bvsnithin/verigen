@@ -21,12 +21,12 @@ from tqdm import tqdm
 # ─────────────────────────────────────────────────────────────
 # CONSTANTS
 # ─────────────────────────────────────────────────────────────
-BASE_DIR     = Path(__file__).parent
-DATASET_PATH = BASE_DIR / "VERT" / "Supplimental_datasets" / "VERT_withRAG.json"
-RETRIEVAL_DIR = BASE_DIR / "retrieval"
-INDEX_PATH   = RETRIEVAL_DIR / "faiss.index"
-META_PATH    = RETRIEVAL_DIR / "metadata.pkl"
-MODEL_NAME   = "all-MiniLM-L6-v2"
+ROOT_DIR      = Path(__file__).parent.parent
+DATASET_PATH  = ROOT_DIR / "data" / "VERT" / "Supplimental_datasets" / "VERT_withRAG.json"
+RETRIEVAL_DIR = ROOT_DIR / "data" / "retrieval"
+INDEX_PATH    = RETRIEVAL_DIR / "faiss.index"
+META_PATH     = RETRIEVAL_DIR / "metadata.pkl"
+MODEL_NAME    = "all-MiniLM-L6-v2"
 
 
 # ─────────────────────────────────────────────────────────────

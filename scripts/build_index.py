@@ -11,9 +11,15 @@ Usage:
     python build_index.py
 """
 
+import sys
+from pathlib import Path
 from sentence_transformers import SentenceTransformer
 
-from retriever import (
+# Add the project root to sys.path so we can import from src
+ROOT_DIR = Path(__file__).parent.parent
+sys.path.append(str(ROOT_DIR))
+
+from src.retriever import (
     MODEL_NAME,
     build_faiss_index,
     index_is_cached,
@@ -106,7 +112,7 @@ endcase
     print_results(query_b, results_b)
 
     print("Done. To query programmatically:")
-    print("  from retriever import retrieve, load_index")
+    print("  from src.retriever import retrieve, load_index")
 
 
 if __name__ == "__main__":

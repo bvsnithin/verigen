@@ -17,7 +17,7 @@ Usage:
 
 from sentence_transformers import SentenceTransformer
 
-from retriever import MODEL_NAME, load_index, retrieve
+from .retriever import MODEL_NAME, load_index, retrieve
 
 # ─────────────────────────────────────────────────────────────
 # PROMPT COMPONENTS
