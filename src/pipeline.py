@@ -22,7 +22,7 @@ from ollama import Client
 from sentence_transformers import SentenceTransformer
 
 from .retriever import MODEL_NAME, load_index, retrieve
-from .prompt_builder import SYSTEM_PROMPT, build_prompt
+from .prompt_builder import SYSTEM_PROMPT, build_prompt, NL_SYSTEM_PROMPT, build_nl_prompt
 from .classifier import RTLClassifier
 
 # Ensure environment variables are loaded
@@ -89,7 +89,25 @@ class SVAGeneratorPipeline:
 
     def generate_assertions(
         self,
-        rtl_code: str,
+        input_type: str,
+        content: str,
+        clock_hint: str | None = None,
+        synchronous_filter: str | None = None,
+        stream: bool = True
+    ) -> str:
+        """
+        Routes the request to the appropriate handler based on input_type.
+        """
+        if input_type == "rtl":
+            return self.handle_rtl_input(content, clock_hint, synchronous_filter, stream)
+        elif input_type == "natural_language":
+            return self.handle_nl_input(content, clock_hint, synchronous_filter, stream)
+        else:
+            raise ValueError(f"Unknown input_type: {input_type}")
+
+    def handle_rtl_input(
+        self,
+        content: str,
         clock_hint: str | None = None,
         synchronous_filter: str | None = None,
         stream: bool = True
@@ -97,17 +115,16 @@ class SVAGeneratorPipeline:
         """
         Executes the full RAG pipeline for a given piece of RTL.
         """
-        
         # Step 1: Classification & Index Access
-        target_dataset = RTLClassifier.classify(rtl_code)
-        print(f"\n[PIPELINE] Classified RTL -> Target Dataset: {target_dataset}")
+        target_dataset = RTLClassifier.classify(content)
+        print(f"\n[PIPELINE] [RTL] Classified RTL -> Target Dataset: {target_dataset}")
         
         index, records = self.get_or_build_index(target_dataset)
         
         # Step 2: Retrieval
-        print("[PIPELINE] Retrieving similar examples...")
+        print("[PIPELINE] [RTL] Retrieving similar examples...")
         examples = retrieve(
-            query_rtl=rtl_code,
+            query_rtl=content,
             model=self.embed_model,
             index=index,
             records=records,
@@ -116,9 +133,9 @@ class SVAGeneratorPipeline:
         )
 
         # Step 3: Prompt Building
-        print("[PIPELINE] Building CoT reasoning prompt...")
+        print("[PIPELINE] [RTL] Building CoT reasoning prompt...")
         prompt = build_prompt(
-            query_rtl=rtl_code,
+            query_rtl=content,
             retrieved_examples=examples,
             clock_hint=clock_hint
         )
@@ -128,6 +145,52 @@ class SVAGeneratorPipeline:
             {"role": "user",   "content": prompt},
         ]
 
+        return self._call_llm(messages, stream)
+
+    def handle_nl_input(
+        self,
+        content: str,
+        clock_hint: str | None = None,
+        synchronous_filter: str | None = None,
+        stream: bool = True
+    ) -> str:
+        """
+        Executes the RAG pipeline for natural language specification.
+        """
+        # For NL, we always retrieve against the main VERT_withRAG.json dataset
+        # which acts as our generic SVA example pool.
+        target_dataset = "VERT_withRAG.json"
+        
+        print(f"\n[PIPELINE] [NL] Using default dataset: {target_dataset}")
+        index, records = self.get_or_build_index(target_dataset)
+        
+        # Step 2: Retrieval
+        print("[PIPELINE] [NL] Retrieving similar code examples based on NL intent...")
+        examples = retrieve(
+            query_rtl=content, 
+            model=self.embed_model,
+            index=index,
+            records=records,
+            top_k=self.top_k,
+            filter_synchronous=synchronous_filter
+        )
+
+        # Step 3: Prompt Building
+        print("[PIPELINE] [NL] Building NL-SVA prompt...")
+        prompt = build_nl_prompt(
+            query_nl=content,
+            retrieved_examples=examples,
+            clock_hint=clock_hint
+        )
+
+        messages = [
+            {"role": "system", "content": NL_SYSTEM_PROMPT},
+            {"role": "user",   "content": prompt},
+        ]
+
+        return self._call_llm(messages, stream)
+
+    def _call_llm(self, messages: list[dict], stream: bool) -> str:
         # Step 4: Call LLM
         print("[PIPELINE] Calling LLM...\n")
         output_chunks = []
@@ -176,9 +239,9 @@ end\
     print("\n------------------------------------------------------------------")
     print("GENERATING SVA (streaming)...\n")
     
-    # Execute query
     assertions = pipeline.generate_assertions(
-        rtl_code=query_rtl,
+        input_type="rtl",
+        content=query_rtl,
         clock_hint="posedge clk",
         synchronous_filter="True" 
     )

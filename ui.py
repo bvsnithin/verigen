@@ -13,12 +13,27 @@ st.set_page_config(
 st.title("VeriGen: SVA Generator")
 st.markdown("A simple interface to generate **SystemVerilog Assertions (SVA)** from RTL snippets.")
 
+# Input Mode Selection
+input_mode = st.radio(
+    "Select how you want to describe the behavior:",
+    options=["RTL Code", "Natural Language"],
+    horizontal=True
+)
+
+if input_mode == "RTL Code":
+    label_text = "Paste your SystemVerilog RTL code here:"
+    placeholder_text = "always_ff @(posedge clk or negedge rst_n) begin\n    if (!rst_n) ...\nend"
+    st.subheader("RTL Input")
+else:
+    label_text = "Describe behavior in plain English:"
+    placeholder_text = "When the enable signal is high, valid_out should be high in the next cycle..."
+    st.subheader("Natural Language Input")
+
 # Input Section
-st.subheader("RTL Input")
-rtl_input = st.text_area(
-    "Paste your SystemVerilog RTL code here:",
+content_input = st.text_area(
+    label_text,
     height=250,
-    placeholder="always_ff @(posedge clk or negedge rst_n) begin\n    if (!rst_n) ...\nend"
+    placeholder=placeholder_text
 )
 
 # Optional Inputs expander
@@ -28,13 +43,14 @@ with st.expander("Advanced Options", expanded=False):
 
 # Generate Button
 if st.button("Generate Assertions", type="primary"):
-    if not rtl_input.strip():
-        st.error("Please enter some RTL code before generating.")
+    if not content_input.strip():
+        st.error(f"Please enter some {input_mode.lower()} before generating.")
     else:
-        with st.spinner("Analyzing RTL and thinking... (this may take a few seconds)"):
+        with st.spinner(f"Analyzing {input_mode.lower()} and thinking... (this may take a few seconds)"):
             # Prepare request payload
             payload = {
-                "rtl_code": rtl_input,
+                "input_type": "rtl" if input_mode == "RTL Code" else "natural_language",
+                "content": content_input,
                 "clock_hint": clock_hint if clock_hint else None,
                 "synchronous_filter": sync_filter if sync_filter != "Auto" else None
             }

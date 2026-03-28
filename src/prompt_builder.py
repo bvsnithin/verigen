@@ -187,6 +187,97 @@ def build_prompt(
 
 
 # ─────────────────────────────────────────────────────────────
+# NATURAL LANGUAGE PROMPT COMPONENTS
+# ─────────────────────────────────────────────────────────────
+
+NL_SYSTEM_PROMPT = """\
+You are an expert in SystemVerilog Assertions and hardware verification.
+
+Convert the following natural language specification into SystemVerilog Assertions.
+
+Instructions:
+* Identify conditions, sequences, and timing behavior
+* Use correct SVA syntax
+* Assume clock and reset if needed
+* Be precise and complete
+
+REASONING STEP:
+Before writing the final structure, you MUST output an <analysis> block where you extract:
+<analysis>
+  <timing>Expected timing (e.g. combinational vs synchronous)</timing>
+  <condition>The triggering conditions</condition>
+  <action>The expected outcome or sequence</action>
+</analysis>
+
+OUTPUT FORMAT:
+Your final output MUST follow this exact structure after the analysis block:
+
+<analysis>...</analysis>
+
+1. Assertions
+```systemverilog
+property <PropertyName>;
+  ...
+endproperty
+```
+
+2. Explanation
+Briefly explain what each assertion checks.
+
+3. Edge cases covered
+List the edge cases (e.g., reset, default assignments, mutual exclusion).
+"""
+
+def format_nl_few_shot_example(index: int, code: str, assertion: str) -> str:
+    """Format an example for NL prompt (uses the RTL representation as context)."""
+    props = []
+    for part in assertion.strip().split("endproperty"):
+        part = part.strip()
+        if part:
+            props.append(part + " endproperty")
+    assertion_block = "\n".join(props)
+    
+    return (
+        f"### Example {index}\n\n"
+        f"Reference RTL Code:\n"
+        f"```systemverilog\n{code.strip()}\n```\n\n"
+        f"Assertions Output:\n"
+        f"```systemverilog\n{assertion_block}\n```\n"
+    )
+
+def build_nl_prompt(
+    query_nl: str,
+    retrieved_examples: list[dict],
+    clock_hint: str | None = None,
+) -> str:
+    """
+    Assemble the full LLM prompt for Natural Language queries.
+    """
+    sections = []
+    if retrieved_examples:
+        sections.append(
+            "Here are similar examples (RTL and Assertions) for structural reference:\n"
+        )
+        for i, example in enumerate(retrieved_examples, start=1):
+            sections.append(format_nl_few_shot_example(
+                index=i,
+                code=example["Code"],
+                assertion=example["Assertion"],
+            ))
+
+    if clock_hint:
+        sections.append(f"Assume the design uses clock: `{clock_hint}`.\n")
+
+    sections.append(
+        "Now generate assertions for the following natural language description:\n"
+        f"USER INPUT: {query_nl.strip()}\n"
+    )
+
+    return "\n".join(sections)
+
+
+
+# ─────────────────────────────────────────────────────────────
 # DEMO
 # ─────────────────────────────────────────────────────────────
 

@@ -36,7 +36,8 @@ app = FastAPI(
 # --- Pydantic Models for Request and Response Validation ---
 
 class AssertionRequest(BaseModel):
-    rtl_code: str
+    input_type: str = "rtl"
+    content: str
     clock_hint: Optional[str] = None
     synchronous_filter: Optional[str] = None
 
@@ -60,7 +61,8 @@ def generate_assertions_endpoint(request: AssertionRequest):
         # Running the synchronous pipeline text generation.
         # FastAPI handles sync endpoints in a threadpool so it won't block the async event loop.
         raw_output = sva_pipeline.generate_assertions(
-            rtl_code=request.rtl_code,
+            input_type=request.input_type,
+            content=request.content,
             clock_hint=request.clock_hint,
             synchronous_filter=request.synchronous_filter,
             stream=False
