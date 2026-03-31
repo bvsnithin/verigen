@@ -2,106 +2,120 @@
 
 VERIGEN is a Retrieval-Augmented Generation (RAG) application that takes SystemVerilog RTL code as input and automatically generates SystemVerilog Assertions (SVAs).
 
-It uses the [VERT Dataset](https://github.com/AnandMenon12/VERT), a collection of 20,000 RTL code snippets paired with hand-crafted assertions.
+It leverages the [VERT Dataset](https://github.com/AnandMenon12/VERT) (containing 20,000 RTL/SVA pairs) and a sophisticated CoT reasoning pipeline to analyze logic schemas and generate high-quality verifications. To match the backend's power, VeriGen now features a premium, responsive glassmorphism React frontend.
 
 ---
 
-## What This Does
+## Architecture
 
-You paste in a block of RTL (like an `if/else` or `case` block), and the system:
+VeriGen is structured as a monorepo consisting of two main parts:
 
-1. Finds the most similar RTL examples from the dataset
-2. Uses those examples as context for an LLM
-3. Generates correct and complete SVA assertions for your code
+1. **`backend/` (FastAPI + RAG Pipeline)**
+   * Manages the retrieval index (FAISS), embedded datasets, and local/cloud LLMs.
+   * Exposes a `/generate_assertions` POST endpoint.
+
+2. **`frontend/` (React + Vite + Tailwind CSS)**
+   * A premium web interface with smooth Framer Motion animations.
+   * Allows dual-mode input (RTL syntax or clean Natural Language specs).
 
 ---
 
 ## Quick Start
 
-### 1. Prerequisites
-- Python 3.10+
-- [Ollama](https://ollama.com) installed and running.
-- An Ollama API Key (if using cloud models).
+You will need **two terminal windows** to run this application: one for the backend API, and one for the frontend UI.
 
-### 2. Setup
+### Prerequisites
+
+* Python 3.10+
+* Node.js 18+ and `npm`
+* [Ollama](https://ollama.com) installed and running locally, or an appropriate API Key set.
+
+### 1. Start the Backend API
+
+Open your first terminal and navigate to the project directory:
+
 ```bash
-# Clone the repository
-git clone https://github.com/bvsnithin/verigen.git
-cd verigen
+cd backend
 
-# Create and activate virtual environment
+# Create and activate a virtual environment
 python3 -m venv venv
-source venv/bin/activate
+source venv/bin/activate  # On Windows use: venv\Scripts\activate
 
-# Install dependencies
+# Install the dependencies
 pip install -r requirements.txt
 
-# Setup API Key
+# Configure your Environment Variables
 cp .env.example .env
-# Edit .env and paste your OLLAMA_API_KEY
-```
+# Open .env and add your OLLAMA_API_KEY (if needed)
 
-### 3. Generate Assertions
-Run the main pipeline demo:
-```bash
-python main.py
+# Start the FastAPI server
+python api.py
 ```
+*The backend API will run on **http://localhost:8000/generate_assertions**.*
+
+### 2. Start the Frontend UI
+
+Open your second terminal and navigate to the project directory:
+
+```bash
+cd frontend
+
+# Install Node dependencies
+npm install
+
+# Start the Vite development server
+npm run dev
+```
+*The frontend interface will run on **http://localhost:5173**. Open this URL in your browser to use VeriGen.*
 
 ---
 
 ## Project Structure
 
-Verified and organized for modularity:
-
 ```text
 verigen/
-├── data/                    # All project data and search indexes
-│   ├── VERT/                # Source RTL/SVA dataset
-│   └── retrieval/           # Cached FAISS vector indexes
-├── src/                     # Core library logic
-│   ├── retriever.py         # FAISS management and search
-│   ├── prompt_builder.py    # Few-shot prompt engineering
-│   ├── classifier.py        # RTL structural analysis
-│   └── pipeline.py          # Unified RAG generation engine
-├── scripts/                 # Utility and maintenance scripts
-│   ├── build_index.py       # One-time FAISS index builder
-│   └── explore_dataset.py   # Dataset analysis tool
-├── main.py                  # Primary application entry point
-├── .env                     # Environment variables (API keys)
-└── requirements.txt         # Project dependencies
+├── backend/                 # Python FastAPI Backend
+│   ├── api.py               # Main FastAPI Application & Endpoint
+│   ├── src/                 # Core logic (Pipeline, Classifier, Retriever, Prompts)
+│   ├── data/                # VERT Dataset & FAISS Vector Indexes
+│   ├── scripts/             # Maintenance scripts (Index building, Dataset exploration)
+│   ├── requirements.txt     # Python Dependencies
+│   └── .env                 # API Keys
+│
+├── frontend/                # React Vite Frontend
+│   ├── src/                 # React Components, Hooks, and App Logic
+│   ├── public/              # Static Assets
+│   ├── package.json         # Node Dependencies
+│   ├── tailwind.config.js   # Tailwind Theme Configuration
+│   └── vite.config.js       # Vite Build Configuration
+│
+└── README.md                # This Documentation
 ```
 
 ---
 
 ## How it Works
 
-VeriGen uses a multi-stage **agentic pipeline** to ensure high-quality SVA generation:
+VeriGen utilizes an **Agentic Pipeline** for optimal generation accuracy:
 
-1.  **Structural Classification**: The `RTLClassifier` analyzes your input code to determine timing (synchronous/asynchronous) and branching logic (`if`, `else`, `case`).
-2.  **Targeted Retrieval**: Instead of searching a massive database, we dynamically select the best **supplemental dataset** matching your RTL structure and retrieve the top-3 most similar examples using FAISS.
-3.  **Chain-of-Thought (CoT) Reasoning**: We inject few-shot examples into the LLM (`kimi-k2.5`) and demand a structured `<analysis>` block before any code is written. The model must explain the timing, conditions, and branches it identified.
-4.  **Structured Output**: Every response contains:
-    *   **Assertions**: Formatted SystemVerilog property blocks.
-    *   **Explanation**: A clear breakdown of what is being checked.
-    *   **Edge Cases**: Verification of resets, default states, and mutual exclusivity.
+1. **Classifying the Request**: Determining if the input code is Synchronous or Asynchronous, identifying edge case signals (`reset`, `enable`).
+2. **Context Retrieval**: Leveraging a FAISS semantic search index, VeriGen cross-references your RTL against the closest matching examples in the VERT database.
+3. **Chain-of-Thought (CoT)**: Using strict few-shot prompting, the model analyzes branching and timing constraints *before* writing any code.
+4. **Structured SVA Output**: Generating robust assertion properties complemented by a plain-language explanation.
 
 ---
 
-## Maintenance Scripts
+## Maintenance & Dataset Scripts
 
-### Build Search Indexes
-If you add new data or want to refresh the cache:
-```bash
-python scripts/build_index.py
-```
+The `backend/scripts/` directory includes tools for maintaining the RAG search indexes:
 
-### Dataset Exploration
-To see samples and statistics of the underlying VERT dataset:
-```bash
-python scripts/explore_dataset.py
-```
-
----
-
-## Dataset Reference
-The system is built on the [VERT Dataset](https://github.com/AnandMenon12/VERT), containing 20,000 RTL/SVA pairs across synchronous and asynchronous domains.
+* **Build the Search Index** (if dataset changes):
+  ```bash
+  cd backend
+  python scripts/build_index.py
+  ```
+* **Explore the Dataset**:
+  ```bash
+  cd backend
+  python scripts/explore_dataset.py
+  ```
