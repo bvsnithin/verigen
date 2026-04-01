@@ -58,17 +58,19 @@ def main():
     model = SentenceTransformer(MODEL_NAME)
     print(f"  Embedding dimension: {model.get_sentence_embedding_dimension()}")
 
-    if index_is_cached():
-        print("\n[2/3] Cache found. Loading index from disk ...")
-        index, records = load_index()
+    DATASET_NAME = "VERT_withRAG"
+
+    if index_is_cached(DATASET_NAME):
+        print(f"\n[2/3] Cache found for '{DATASET_NAME}'. Loading index from disk ...")
+        index, records = load_index(DATASET_NAME)
         print(f"  Loaded {index.ntotal:,} vectors.")
     else:
-        print("\n[2/3] No cache found. Building FAISS index ...")
+        print(f"\n[2/3] No cache found for '{DATASET_NAME}'. Building FAISS index ...")
         records = load_dataset()
         print(f"  Dataset: {len(records):,} records")
         index = build_faiss_index(records, model)
-        save_index(index, records)
-        print(f"  Saved to retrieval/")
+        save_index(index, records, DATASET_NAME)
+        print(f"  Saved to retrieval/{DATASET_NAME}.index")
 
     print(f"\n[3/3] Index ready: {index.ntotal:,} vectors. Running demo queries ...\n")
 

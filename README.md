@@ -10,13 +10,17 @@ It leverages the [VERT Dataset](https://github.com/AnandMenon12/VERT) (containin
 
 VeriGen is structured as a monorepo consisting of two main parts:
 
-1. **`backend/` (FastAPI + RAG Pipeline)**
-   * Manages the retrieval index (FAISS), embedded datasets, and local/cloud LLMs.
-   * Exposes a `/generate_assertions` POST endpoint.
+1. **`backend/` (FastAPI + Python)**
+   * **Vector Database:** Manages a local FAISS semantic search index.
+   * **LLM Integration:** Connects to local or cloud LLMs for AI generation.
+   * **Streaming API:** Exposes a `/generate_assertions/stream` endpoint using Server-Sent Events (SSE) to emit real-time pipeline status to the client.
+   * **Zero-Latency Startup:** Loads the FAISS index into memory at application startup to eliminate cold-start latency.
 
 2. **`frontend/` (React + Vite + Tailwind CSS)**
-   * A premium web interface with smooth Framer Motion animations.
-   * Allows dual-mode input (RTL syntax or clean Natural Language specs).
+   * **Professional UI:** Designed with a clean, typography-driven black-and-white aesthetic (Funnel Display & Inter fonts).
+   * **Dual-Mode Input:** Accepts both SystemVerilog RTL syntax or plain English structural descriptions.
+   * **Live Progress Tracker:** Visualizes the backend's internal pipeline stages (Classify → Retrieve → Prompt → Generate) via real-time SSE updates.
+   * **Rich Output:** Formats the LLM output using Markdown, complete with syntax-highlighted JetBrains Mono code blocks and clean separation of SVAs and explanations.
 
 ---
 
@@ -28,11 +32,11 @@ You will need **two terminal windows** to run this application: one for the back
 
 * Python 3.10+
 * Node.js 18+ and `npm`
-* [Ollama](https://ollama.com) installed and running locally, or an appropriate API Key set.
+* [Ollama](https://ollama.com) configured, or an appropriate API Key set in `.env`.
 
-### 1. Start the Backend API
+### 1. Build the Search Index & Start the Backend
 
-Open your first terminal and navigate to the project directory:
+Open your first terminal:
 
 ```bash
 cd backend
@@ -44,18 +48,17 @@ source venv/bin/activate  # On Windows use: venv\Scripts\activate
 # Install the dependencies
 pip install -r requirements.txt
 
-# Configure your Environment Variables
-cp .env.example .env
-# Open .env and add your OLLAMA_API_KEY (if needed)
+# (One-time only) Build the FAISS cache from the VERT dataset
+python scripts/build_index.py
 
 # Start the FastAPI server
 python api.py
 ```
-*The backend API will run on **http://localhost:8000/generate_assertions**.*
+*The backend API will run on **http://localhost:8000**.*
 
 ### 2. Start the Frontend UI
 
-Open your second terminal and navigate to the project directory:
+Open your second terminal:
 
 ```bash
 cd frontend
@@ -66,7 +69,7 @@ npm install
 # Start the Vite development server
 npm run dev
 ```
-*The frontend interface will run on **http://localhost:5173**. Open this URL in your browser to use VeriGen.*
+*The frontend interface will run on **http://localhost:5173**.*
 
 ---
 
@@ -98,24 +101,8 @@ verigen/
 
 VeriGen utilizes an **Agentic Pipeline** for optimal generation accuracy:
 
-1. **Classifying the Request**: Determining if the input code is Synchronous or Asynchronous, identifying edge case signals (`reset`, `enable`).
-2. **Context Retrieval**: Leveraging a FAISS semantic search index, VeriGen cross-references your RTL against the closest matching examples in the VERT database.
-3. **Chain-of-Thought (CoT)**: Using strict few-shot prompting, the model analyzes branching and timing constraints *before* writing any code.
-4. **Structured SVA Output**: Generating robust assertion properties complemented by a plain-language explanation.
-
----
-
-## Maintenance & Dataset Scripts
-
-The `backend/scripts/` directory includes tools for maintaining the RAG search indexes:
-
-* **Build the Search Index** (if dataset changes):
-  ```bash
-  cd backend
-  python scripts/build_index.py
-  ```
-* **Explore the Dataset**:
-  ```bash
-  cd backend
-  python scripts/explore_dataset.py
-  ```
+1. **Classifying the Request**: The backend determines if the input code is Synchronous or Asynchronous, identifying critical edge case signals (e.g., `reset`, `enable`).
+2. **Context Retrieval**: Utilizing a pre-built FAISS vector index, VeriGen embeds your query using `sentence-transformers` and retrieves the most semantically similar RTL/SVA pairs from the VERT database.
+3. **Chain-of-Thought (CoT)**: The retrieved examples are injected into a dynamic prompt. The LLM is forced to analyze branching and timing constraints *before* writing any code.
+4. **Streaming Execution**: The pipeline stages stream status events back to the frontend using an asynchronous FastAPI generator.
+5. **Post-Processing**: The frontend strips internal reasoning tokens (like `<analysis>...</analysis>`) and cleanly renders the final assertions and descriptions.
