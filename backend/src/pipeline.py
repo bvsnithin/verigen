@@ -75,23 +75,8 @@ class SVAGeneratorPipeline:
         content: str,
         clock_hint: str | None = None,
         synchronous_filter: str | None = None,
-        stream: bool = False,
         event_callback=None,
     ) -> dict:
-        """
-        Run the full multi-agent pipeline and return a result dict.
-
-        Returns:
-            {
-                "assertions":  str,   # assertions block
-                "explanation": str,   # explanation block
-                "summary":     str,   # summarizer output (user-facing)
-            }
-
-        Note: `stream` parameter is accepted for backwards compatibility
-        but the multi-agent pipeline always runs non-streaming internally.
-        The SSE streaming to the client is handled by api.py via event_callback.
-        """
         state = PipelineState(
             input_type=input_type,
             content=content,
