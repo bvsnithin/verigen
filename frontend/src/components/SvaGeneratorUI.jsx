@@ -292,8 +292,8 @@ const SvaGeneratorUI = () => {
   ].filter(t => t.content?.trim());
 
   const bgStyle = !isDarkMode
-    ? { fontFamily: 'Inter, sans-serif', backgroundColor: '#ffffff', backgroundImage: 'radial-gradient(circle, rgb(255,255,255) 0%, rgb(228,241,255) 100%)' }
-    : { fontFamily: 'Inter, sans-serif' };
+    ? { fontFamily: 'Funnel Display, sans-serif', backgroundColor: '#ffffff', backgroundImage: 'radial-gradient(circle, rgb(255,255,255) 0%, rgb(228,241,255) 100%)' }
+    : { fontFamily: 'Funnel Display, sans-serif' };
 
   return (
     <div
@@ -347,7 +347,7 @@ const SvaGeneratorUI = () => {
                       </span>
                     </div>
                     <p className={`text-sm line-clamp-2 leading-relaxed ${isDarkMode ? 'text-zinc-400' : 'text-zinc-700'}`}
-                      style={{ fontFamily: item.input_type === 'rtl' ? "'Intel One Mono', monospace" : 'Inter, sans-serif' }}>
+                      style={{ fontFamily: item.input_type === 'rtl' ? "'Intel One Mono', monospace" : "'Funnel Display', sans-serif" }}>
                       {item.content.length > 100 ? item.content.slice(0, 100) + '…' : item.content}
                     </p>
                     <div className="flex items-center gap-2 mt-1">
@@ -370,7 +370,7 @@ const SvaGeneratorUI = () => {
       </AnimatePresence>
 
       {/* ── LEFT PANEL — input & pipeline ── */}
-      <div className={`w-full lg:w-[480px] xl:w-[520px] flex-shrink-0 lg:sticky lg:top-0 lg:h-screen lg:overflow-y-auto
+      <div className={`w-full lg:w-1/2 flex-shrink-0 lg:sticky lg:top-0 lg:h-screen lg:overflow-y-auto
         flex flex-col px-8 py-10 transition-colors duration-300
         ${isDarkMode ? 'border-r border-zinc-800' : 'border-r border-zinc-200'}`}>
 
@@ -553,25 +553,14 @@ const SvaGeneratorUI = () => {
             <motion.div
               key="empty"
               initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-              className="flex-1 flex flex-col items-center justify-center gap-5 text-center py-20"
+              className="flex-1 flex flex-col items-center justify-center gap-2 text-center py-20"
             >
-              <div className={`w-16 h-16 rounded-2xl border-2 border-dashed flex items-center justify-center
-                ${isDarkMode ? 'border-zinc-800' : 'border-zinc-200'}`}>
-                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"
-                  className={isDarkMode ? 'text-zinc-700' : 'text-zinc-300'}>
-                  <path d="M12 2L2 7l10 5 10-5-10-5z"/>
-                  <path d="M2 17l10 5 10-5"/>
-                  <path d="M2 12l10 5 10-5"/>
-                </svg>
-              </div>
-              <div>
-                <p className={`text-sm font-semibold ${isDarkMode ? 'text-zinc-500' : 'text-zinc-400'}`}>
-                  Results will appear here
-                </p>
-                <p className={`text-xs mt-1 ${isDarkMode ? 'text-zinc-700' : 'text-zinc-300'}`}>
-                  Enter RTL code or a hardware description and generate
-                </p>
-              </div>
+              <p className={`text-sm font-semibold ${isDarkMode ? 'text-zinc-500' : 'text-zinc-400'}`}>
+                Results will appear here
+              </p>
+              <p className={`text-xs ${isDarkMode ? 'text-zinc-700' : 'text-zinc-300'}`}>
+                Enter RTL code or a hardware description and generate
+              </p>
             </motion.div>
           ) : (
             /* Results panel */
