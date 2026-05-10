@@ -33,12 +33,11 @@ from typing import Optional
 from fastapi.middleware.cors import CORSMiddleware
 
 from src.pipeline import SVAGeneratorPipeline
-from src.guardrails import InputGuardrail
+from src.guardrails import check_input_domain
 
 # ── Global state ───────────────────────────────────────────────────────────────
 
 sva_pipeline: SVAGeneratorPipeline | None = None
-input_guardrail: InputGuardrail | None = None
 
 # In-memory history — list of dicts, newest first
 _history: list[dict] = []
@@ -47,7 +46,7 @@ MAX_HISTORY = 50
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    global sva_pipeline, input_guardrail
+    global sva_pipeline
     print("[API] Starting up — initialising the multi-agent pipeline...")
     try:
         sva_pipeline = SVAGeneratorPipeline(top_k=3)
@@ -56,10 +55,6 @@ async def lifespan(app: FastAPI):
         print("[API] Pipeline ready.")
     except Exception as e:
         print(f"[API] Error during startup: {e}")
-    try:
-        input_guardrail = InputGuardrail()
-    except Exception as e:
-        print(f"[API] Guardrail init failed (will skip): {e}")
     yield
     print("[API] Shutting down...")
 
@@ -152,16 +147,15 @@ async def generate_assertions_stream(request: AssertionRequest):
     if sva_pipeline is None:
         raise HTTPException(status_code=500, detail="Pipeline not initialised.")
 
-    if input_guardrail is not None:
-        allowed, rejection_msg = await input_guardrail.check(request.content)
-        if not allowed:
-            async def _blocked():
-                yield _sse("error", {"message": rejection_msg})
-            return StreamingResponse(
-                _blocked(),
-                media_type="text/event-stream",
-                headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
-            )
+    allowed, rejection_msg = await check_input_domain(request.content)
+    if not allowed:
+        async def _blocked():
+            yield _sse("error", {"message": rejection_msg})
+        return StreamingResponse(
+            _blocked(),
+            media_type="text/event-stream",
+            headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
+        )
 
     async def event_generator():
         evt_queue: queue.Queue = queue.Queue()
@@ -238,10 +232,9 @@ async def generate_assertions_endpoint(request: AssertionRequest):
     """Synchronous (non-streaming) endpoint — kept for backwards compatibility."""
     if sva_pipeline is None:
         raise HTTPException(status_code=500, detail="Pipeline not initialised.")
-    if input_guardrail is not None:
-        allowed, rejection_msg = await input_guardrail.check(request.content)
-        if not allowed:
-            raise HTTPException(status_code=422, detail=rejection_msg)
+    allowed, rejection_msg = await check_input_domain(request.content)
+    if not allowed:
+        raise HTTPException(status_code=422, detail=rejection_msg)
     try:
         result = sva_pipeline.generate_assertions(
             input_type=request.input_type,
@@ -294,7 +287,6 @@ def health_check():
     return {
         "status": "healthy",
         "pipeline_ready": sva_pipeline is not None,
-        "guardrail_ready": input_guardrail is not None,
         "history_count": len(_history),
         "version": "2.2.0",
     }

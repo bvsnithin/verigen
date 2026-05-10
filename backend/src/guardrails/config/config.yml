@@ -1,8 +1,0 @@
-# NeMo Guardrails config for VeriGen.
-# The main LLM is injected programmatically via LLMRails(config, llm=...).
-# This config only defines the input rail policy.
-
-rails:
-  input:
-    flows:
-      - check input domain

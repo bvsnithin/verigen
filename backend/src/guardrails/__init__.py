@@ -1,3 +1,3 @@
-from .checker import InputGuardrail
+from .domain_check import check_input_domain
 
-__all__ = ["InputGuardrail"]
+__all__ = ["check_input_domain"]

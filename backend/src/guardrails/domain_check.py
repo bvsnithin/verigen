@@ -12,23 +12,28 @@ _RTL_PATTERN = re.compile(
     re.IGNORECASE,
 )
 
-_CLASSIFICATION_PROMPT = (
-    "You are a domain classifier for VeriGen, a SystemVerilog assertion generator.\n"
-    "Determine if the following input is related to: RTL code, hardware design, "
-    "SystemVerilog, Verilog, digital circuits, FPGAs, ASICs, or hardware verification.\n"
-    "Reply with YES or NO only — no explanation.\n\n"
-    "Input: {user_input}"
+_REJECTION = (
+    "I'm VeriGen, a SystemVerilog assertion generator. I can only help with "
+    "RTL code analysis and assertion generation. Please provide RTL code or a "
+    "hardware design specification."
+)
+
+_PROMPT = (
+    "Is the following input related to RTL code, hardware design, SystemVerilog, "
+    "Verilog, digital circuits, FPGAs, ASICs, or hardware verification? "
+    "Reply YES or NO only.\n\nInput: {user_input}"
 )
 
 
-async def check_input_domain(context: dict) -> bool:
-    user_input = context.get("user_message", "")
-
-    # Fast path: RTL/hardware keyword present
+async def check_input_domain(user_input: str) -> tuple[bool, str]:
+    """
+    Returns (allowed, rejection_message).
+    Fast regex for RTL keywords; LLM fallback for natural language.
+    Fails open on errors so legitimate requests are never blocked.
+    """
     if _RTL_PATTERN.search(user_input):
-        return True
+        return True, ""
 
-    # LLM-based check for natural language or ambiguous inputs
     api_key = os.environ.get("OLLAMA_API_KEY", "")
     client = Client(
         host="https://ollama.com",
@@ -39,11 +44,11 @@ async def check_input_domain(context: dict) -> bool:
             "qwen3-coder-next",
             messages=[{
                 "role": "user",
-                "content": _CLASSIFICATION_PROMPT.format(user_input=user_input[:500]),
+                "content": _PROMPT.format(user_input=user_input[:500]),
             }],
             stream=False,
         )
         answer = response["message"]["content"].strip().upper()
-        return answer.startswith("YES")
+        return (True, "") if answer.startswith("YES") else (False, _REJECTION)
     except Exception:
-        return True  # fail open — don't block legitimate requests on LLM errors
+        return True, ""
