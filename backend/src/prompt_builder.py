@@ -64,10 +64,10 @@ property <PropertyName>;
 endproperty
 ```
 
-2. Explanation
+## Explanation
 Briefly explain what each assertion checks.
 
-3. Edge cases covered
+## Edge Cases Covered
 List the edge cases (e.g., reset, default assignments, mutual exclusion).
 """
 
@@ -109,9 +109,9 @@ def format_few_shot_example(index: int, code: str, assertion: str) -> str:
     output = f"{mock_reasoning}\n\n"
     output += "1. Assertions\n"
     output += f"```systemverilog\n{assertion_block}\n```\n\n"
-    output += "2. Explanation\n"
+    output += "## Explanation\n"
     output += "- These properties check the main logical branches within the RTL.\n\n"
-    output += "3. Edge cases covered\n"
+    output += "## Edge Cases Covered\n"
     output += f"{edge_cases}"
 
     return (
@@ -221,10 +221,10 @@ property <PropertyName>;
 endproperty
 ```
 
-2. Explanation
+## Explanation
 Briefly explain what each assertion checks.
 
-3. Edge cases covered
+## Edge Cases Covered
 List the edge cases (e.g., reset, default assignments, mutual exclusion).
 """
 

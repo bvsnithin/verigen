@@ -28,10 +28,22 @@ def _parse_output(raw: str) -> tuple[str, str]:
     assertions_text = raw
     explanation_text = ""
 
-    if "1. Assertions" in raw and "2. Explanation" in raw:
+    if "## Explanation" in raw:
+        parts = raw.split("## Explanation", 1)
+        assertions_part = parts[0].strip()
+        # Strip the "1. Assertions" label — just show the code block
+        if assertions_part.startswith("1. Assertions"):
+            assertions_part = assertions_part[len("1. Assertions"):].strip()
+        assertions_text = assertions_part
+        explanation_text = ("## Explanation\n" + parts[1]).strip()
+    elif "2. Explanation" in raw:
+        # Legacy format fallback
         parts = raw.split("2. Explanation", 1)
-        assertions_text = parts[0].strip()
-        explanation_text = ("2. Explanation\n" + parts[1]).strip()
+        assertions_part = parts[0].strip()
+        if assertions_part.startswith("1. Assertions"):
+            assertions_part = assertions_part[len("1. Assertions"):].strip()
+        assertions_text = assertions_part
+        explanation_text = parts[1].strip()
     elif "```systemverilog" in raw:
         parts = raw.split("```systemverilog", 1)
         if "```" in parts[1]:
