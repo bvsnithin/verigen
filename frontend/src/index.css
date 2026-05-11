@@ -3,7 +3,7 @@
 @theme {
   --font-funnel: "Funnel Display", sans-serif;
   --font-inter: "Inter", sans-serif;
-  --font-mono: "JetBrains Mono", monospace;
+  --font-mono: "Intel One Mono", monospace;
 }
 
 *, *::before, *::after {

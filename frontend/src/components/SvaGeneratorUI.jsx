@@ -75,25 +75,24 @@ function AgentTimeline({ agentStates, isDarkMode }) {
 
           return (
             <div key={agent.key} className="flex-1 flex flex-col items-center gap-1">
-              <span className={`text-xs font-semibold text-center transition-colors duration-200
-                ${isActive ? (isDarkMode ? 'text-white' : 'text-zinc-900') : (isDarkMode ? 'text-zinc-600' : 'text-zinc-400')}`}>
+              <span className={`text-sm font-semibold text-center transition-colors duration-200
+                ${isActive ? (isDarkMode ? 'text-white' : 'text-zinc-900') : (isDarkMode ? 'text-zinc-400' : 'text-zinc-500')}`}>
                 {agent.label}
               </span>
               {isRunning && (
-                <span className={`text-[9px] font-bold uppercase tracking-widest px-1.5 py-0.5 rounded-full animate-pulse border
-                  ${isDarkMode ? 'bg-zinc-800 border-zinc-700 text-zinc-300' : 'bg-zinc-100 border-zinc-200 text-zinc-500'}`}>
+                <span className={`text-[10px] font-bold uppercase tracking-widest px-2 py-1 rounded-md animate-pulse
+                  ${isDarkMode ? 'bg-zinc-700 text-white' : 'bg-zinc-500 text-white'}`}>
                   Running
                 </span>
               )}
               {isRetrying && (
-                <span className={`text-[9px] font-bold uppercase tracking-widest px-1.5 py-0.5 rounded-full border
-                  ${isDarkMode ? 'bg-amber-900/30 border-amber-800/50 text-amber-400' : 'bg-amber-50 border-amber-200 text-amber-600'}`}>
+                <span className={`text-[10px] font-bold uppercase tracking-widest px-2 py-1 rounded-md
+                  ${isDarkMode ? 'bg-amber-600 text-white' : 'bg-amber-500 text-white'}`}>
                   Refining
                 </span>
               )}
               {isDone && (
-                <span className={`text-[9px] font-bold uppercase tracking-widest px-1.5 py-0.5 rounded-full border
-                  ${isDarkMode ? 'bg-emerald-900/30 border-emerald-800/50 text-emerald-400' : 'bg-emerald-50 border-emerald-200 text-emerald-600'}`}>
+                <span className="text-[10px] font-bold uppercase tracking-widest px-2 py-1 rounded-md bg-green-500 text-white">
                   Done
                 </span>
               )}
@@ -130,7 +129,7 @@ function CodeBlock({ children, language, isDarkMode }) {
           ${isDarkMode ? 'bg-[#181818] border-zinc-800' : 'bg-zinc-50 border-zinc-200'}`}>
           <span className={`text-[11px] font-bold uppercase tracking-widest
             ${isDarkMode ? 'text-zinc-400' : 'text-zinc-500'}`}
-            style={{ fontFamily: "Consolas, Monaco, 'Andale Mono', 'Ubuntu Mono', monospace" }}>
+            style={{ fontFamily: "'Intel One Mono', monospace" }}>
             {language}
           </span>
           <button
@@ -154,7 +153,7 @@ function CodeBlock({ children, language, isDarkMode }) {
         }}
         codeTagProps={{
           style: { 
-            fontFamily: "Consolas, Monaco, 'Andale Mono', 'Ubuntu Mono', monospace",
+            fontFamily: "'Intel One Mono', monospace",
             fontVariantLigatures: 'none'
           }
         }}
@@ -175,7 +174,7 @@ const getMdComponents = (isDarkMode) => ({
       return (
         <code className={`text-[13px] px-1.5 py-0.5 rounded-md border transition-colors duration-300
           ${isDarkMode ? 'bg-zinc-800 border-zinc-700 text-zinc-300' : 'bg-zinc-100 border-zinc-200 text-zinc-800'}`}
-          style={{ fontFamily: "Consolas, Monaco, 'Andale Mono', 'Ubuntu Mono', monospace", fontVariantLigatures: 'none' }}
+          style={{ fontFamily: "'Intel One Mono', monospace", fontVariantLigatures: 'none' }}
           {...props}>
           {children}
         </code>
@@ -301,9 +300,9 @@ const SvaGeneratorUI = () => {
     setInputMode(item.input_type);
     setInputValue(item.content);
     setOutput({
-      assertions:  item.assertions,
-      explanation: item.explanation,
-      summary:     item.summary,
+      assertions:  cleanLLMOutput(item.assertions),
+      explanation: cleanLLMOutput(item.explanation),
+      summary:     cleanLLMOutput(item.summary),
     });
     setAgentStates({});
     setErrorStatus('');
@@ -322,12 +321,12 @@ const SvaGeneratorUI = () => {
   ].filter(t => t.content?.trim());
 
   const bgStyle = !isDarkMode
-    ? { fontFamily: 'Funnel Display, sans-serif', backgroundColor: '#ffffff', backgroundImage: 'radial-gradient(circle, rgb(255,255,255) 0%, rgb(228,241,255) 100%)' }
-    : { fontFamily: 'Funnel Display, sans-serif' };
+    ? { fontFamily: 'Funnel Display, sans-serif', backgroundColor: '#f5f5f7', backgroundImage: 'radial-gradient(ellipse 80% 80% at 50% -20%, rgba(16, 185, 129, 0.08), rgba(245, 245, 247, 0))' }
+    : { fontFamily: 'Funnel Display, sans-serif', backgroundColor: '#09090b', backgroundImage: 'radial-gradient(ellipse 80% 80% at 50% -20%, rgba(16, 185, 129, 0.15), rgba(0, 0, 0, 0))' };
 
   return (
     <div
-      className={`min-h-screen flex flex-col lg:flex-row transition-colors duration-500 ${isDarkMode ? 'bg-[#0f1115]' : ''}`}
+      className={`h-screen overflow-hidden flex flex-col lg:flex-row transition-colors duration-500`}
       style={bgStyle}
     >
       {/* ── History Sidebar ── */}
@@ -400,23 +399,23 @@ const SvaGeneratorUI = () => {
       </AnimatePresence>
 
       {/* ── LEFT PANEL — input & pipeline ── */}
-      <div className={`w-full lg:w-1/2 flex-shrink-0 lg:sticky lg:top-0 lg:h-screen lg:overflow-y-auto
-        flex flex-col px-8 py-10 transition-colors duration-300
-        ${isDarkMode ? 'border-r border-zinc-800' : 'border-r border-zinc-200'}`}>
+      <div className={`w-full lg:w-1/2 flex-shrink-0 h-full overflow-y-auto
+        flex flex-col px-8 py-10 transition-colors duration-300 relative z-10
+        ${isDarkMode ? 'border-r border-white/5 bg-black/20 backdrop-blur-2xl' : 'border-r border-white/60 bg-white/40 backdrop-blur-2xl shadow-[4px_0_24px_rgba(0,0,0,0.02)]'}`}>
 
         {/* Top bar: history + theme toggle */}
         <div className="flex items-center justify-between mb-10">
           <button
             onClick={() => setIsHistoryOpen(true)}
-            className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold border transition-colors
-              ${isDarkMode ? 'bg-zinc-800 border-zinc-700 text-zinc-300 hover:bg-zinc-700' : 'bg-white border-zinc-200 text-zinc-700 hover:bg-zinc-50'}`}
+            className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold border transition-all shadow-sm backdrop-blur-md
+              ${isDarkMode ? 'bg-zinc-800 border-zinc-700 text-zinc-300 hover:bg-zinc-700' : 'bg-white/60 border-white/80 text-zinc-700 hover:bg-white/80'}`}
           >
             History
           </button>
           <button
             onClick={() => setIsDarkMode(!isDarkMode)}
-            className={`w-9 h-9 flex items-center justify-center rounded-lg border transition-colors
-              ${isDarkMode ? 'bg-zinc-800 border-zinc-700 text-zinc-300 hover:bg-zinc-700' : 'bg-white border-zinc-200 text-zinc-600 hover:bg-zinc-50'}`}
+            className={`w-9 h-9 flex items-center justify-center rounded-lg border transition-all shadow-sm backdrop-blur-md
+              ${isDarkMode ? 'bg-zinc-800 border-zinc-700 text-zinc-300 hover:bg-zinc-700' : 'bg-white/60 border-white/80 text-zinc-600 hover:bg-white/80'}`}
             title={isDarkMode ? 'Light mode' : 'Dark mode'}
           >
             {isDarkMode ? (
@@ -441,15 +440,15 @@ const SvaGeneratorUI = () => {
           className="mb-8"
         >
           <h1
-            className={`text-5xl font-bold tracking-tight mb-2 transition-colors duration-300 ${isDarkMode ? 'text-white' : 'text-zinc-950'}`}
+            className={`text-5xl font-bold tracking-tight mb-2 transition-colors duration-300 drop-shadow-sm ${isDarkMode ? 'text-transparent bg-clip-text bg-gradient-to-br from-white to-white/60' : 'text-transparent bg-clip-text bg-gradient-to-br from-zinc-900 to-zinc-600'}`}
             style={{ fontFamily: 'Funnel Display, sans-serif' }}
           >
             VERIGEN
           </h1>
-          <p className={`text-sm font-normal tracking-wide transition-colors duration-300 ${isDarkMode ? 'text-zinc-400' : 'text-zinc-500'}`}>
+          <p className={`text-base font-medium tracking-wide transition-colors duration-300 ${isDarkMode ? 'text-zinc-300' : 'text-zinc-600'}`}>
             Multi-agent SystemVerilog Assertion generation
           </p>
-          <p className={`text-xs font-normal tracking-wide mt-0.5 transition-colors duration-300 ${isDarkMode ? 'text-zinc-600' : 'text-zinc-400'}`}>
+          <p className={`text-sm font-normal tracking-wide mt-1 transition-colors duration-300 ${isDarkMode ? 'text-zinc-400' : 'text-zinc-500'}`}>
             RAG · Generate · Summarize
           </p>
         </motion.div>
@@ -462,15 +461,15 @@ const SvaGeneratorUI = () => {
           className="flex flex-col gap-5 flex-1"
         >
           {/* Mode Toggle */}
-          <div className={`flex gap-1 p-1 rounded-xl border w-fit transition-colors duration-300
-            ${isDarkMode ? 'bg-[#1a1a1a] border-zinc-800' : 'bg-zinc-100 border-zinc-200'}`}>
+          <div className={`flex gap-1 p-1 rounded-xl border w-fit transition-colors duration-300 shadow-sm backdrop-blur-md
+            ${isDarkMode ? 'bg-[#1a1a1a] border-zinc-800' : 'bg-black/[0.03] border-black/[0.05]'}`}>
             {['rtl', 'natural_language'].map(mode => (
               <button
                 key={mode}
                 onClick={() => setInputMode(mode)}
                 className={`px-5 py-2 rounded-lg text-sm font-medium transition-all duration-200
                   ${inputMode === mode
-                    ? (isDarkMode ? 'bg-zinc-800 text-white shadow-sm border border-zinc-700' : 'bg-white text-zinc-900 shadow-sm border border-zinc-200')
+                    ? (isDarkMode ? 'bg-zinc-800 text-white shadow-sm border border-zinc-700' : 'bg-white/80 text-zinc-900 shadow-sm border border-white/60')
                     : (isDarkMode ? 'text-zinc-500 hover:text-zinc-300' : 'text-zinc-500 hover:text-zinc-800')}`}
               >
                 {mode === 'rtl' ? 'RTL Mode' : 'Natural Language'}
@@ -479,10 +478,10 @@ const SvaGeneratorUI = () => {
           </div>
 
           {/* Input Textarea */}
-          <div className={`rounded-2xl overflow-hidden transition-all duration-300
-            ${isDarkMode ? 'bg-[#0a0a0a] border-[3px] border-[oklch(0.34_0.05_73.64)] shadow-[0_0_10px_rgba(255,255,255,0.05)]' : 'bg-white border border-zinc-200 shadow-lg'}`}>
+          <div className={`rounded-2xl overflow-hidden transition-all duration-300 border
+            ${isDarkMode ? 'bg-black/40 border-white/10 shadow-2xl backdrop-blur-md' : 'bg-white/60 border-white/80 shadow-[0_8px_30px_rgb(0,0,0,0.04)] backdrop-blur-xl'}`}>
             <div className={`flex items-center gap-3 px-4 py-3 border-b transition-colors duration-300
-              ${isDarkMode ? 'border-zinc-800/80 bg-[#141414]' : 'border-zinc-100 bg-zinc-50'}`}>
+              ${isDarkMode ? 'border-white/10 bg-white/5' : 'border-white/60 bg-white/40'}`}>
               <span className={`font-mono text-sm font-bold ${isDarkMode ? 'text-emerald-400' : 'text-emerald-600'}`}>
                 {inputMode === 'rtl' ? '>_' : '~$'}
               </span>
@@ -508,10 +507,10 @@ const SvaGeneratorUI = () => {
               whileHover={{ scale: 1.015 }} whileTap={{ scale: 0.985 }}
               onClick={handleGenerate}
               disabled={!inputValue.trim() || isGenerating}
-              className={`flex-1 py-3 rounded-xl text-sm font-semibold tracking-wide transition-all duration-200 flex items-center justify-center gap-3
+              className={`flex-1 py-3 rounded-xl text-sm font-semibold tracking-wide transition-all duration-200 flex items-center justify-center gap-3 backdrop-blur-md border
                 ${!inputValue.trim() || isGenerating
-                  ? (isDarkMode ? 'bg-zinc-800 text-zinc-500 cursor-not-allowed border border-zinc-700' : 'bg-zinc-100 text-zinc-400 cursor-not-allowed border border-zinc-200')
-                  : (isDarkMode ? 'bg-white text-zinc-950 shadow-md hover:bg-zinc-100' : 'bg-zinc-950 text-white shadow-md hover:bg-zinc-800')}`}
+                  ? (isDarkMode ? 'bg-zinc-800 text-zinc-500 cursor-not-allowed border-zinc-700' : 'bg-white/40 text-zinc-400 cursor-not-allowed border-white/60')
+                  : (isDarkMode ? 'bg-white text-zinc-950 shadow-[0_0_15px_rgba(255,255,255,0.2)] border-white hover:bg-zinc-100' : 'bg-zinc-900/90 text-white shadow-lg border-zinc-800 hover:bg-zinc-950')}`}
             >
               {isGenerating ? (
                 <>
@@ -529,8 +528,8 @@ const SvaGeneratorUI = () => {
               <motion.button
                 whileHover={{ scale: 1.015 }} whileTap={{ scale: 0.985 }}
                 onClick={handleGenerate}
-                className={`px-5 py-3 rounded-xl text-sm font-semibold border transition-all shadow-sm
-                  ${isDarkMode ? 'bg-zinc-900 border-zinc-700 text-zinc-300 hover:bg-zinc-800' : 'bg-white border-zinc-200 text-zinc-700 hover:bg-zinc-50 hover:border-zinc-400'}`}
+                className={`px-5 py-3 rounded-xl text-sm font-semibold border transition-all shadow-sm backdrop-blur-md
+                  ${isDarkMode ? 'bg-zinc-900 border-zinc-700 text-zinc-300 hover:bg-zinc-800' : 'bg-white/60 border-white/80 text-zinc-700 hover:bg-white/80 hover:shadow-md'}`}
               >
                 Regenerate
               </motion.button>
@@ -546,8 +545,8 @@ const SvaGeneratorUI = () => {
                 animate={{ opacity: 1, height: 'auto' }}
                 exit={{ opacity: 0, height: 0 }}
                 transition={{ duration: 0.3 }}
-                className={`rounded-2xl p-5 overflow-hidden transition-all duration-300
-                  ${isDarkMode ? 'bg-[#141414] border-[3px] border-[oklch(0.34_0.05_73.64)]' : 'bg-white border border-zinc-200 shadow-sm'}`}
+                className={`rounded-2xl p-5 overflow-hidden transition-all duration-300 border
+                  ${isDarkMode ? 'bg-black/40 border-white/10 shadow-2xl backdrop-blur-md' : 'bg-white/60 border-white/80 shadow-sm backdrop-blur-xl'}`}
               >
                 <div className="flex items-center gap-2 mb-4">
                   <div className={`w-1.5 h-1.5 rounded-full ${isGenerating ? (isDarkMode ? 'bg-white animate-pulse' : 'bg-zinc-950 animate-pulse') : 'bg-emerald-500'}`} />
@@ -576,19 +575,19 @@ const SvaGeneratorUI = () => {
       </div>
 
       {/* ── RIGHT PANEL — results ── */}
-      <div className="flex-1 flex flex-col px-8 py-10 min-h-screen overflow-y-auto">
+      <div className={`flex-1 flex flex-col h-full relative z-0 transition-colors duration-300 bg-transparent`}>
         <AnimatePresence mode="wait">
           {!output ? (
             /* Empty state */
             <motion.div
               key="empty"
               initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-              className="flex-1 flex flex-col items-center justify-center gap-2 text-center py-20"
+              className="flex-1 flex flex-col items-center justify-center gap-2 text-center py-20 px-8"
             >
-              <p className={`text-sm font-semibold ${isDarkMode ? 'text-zinc-500' : 'text-zinc-400'}`}>
+              <p className={`text-base font-semibold ${isDarkMode ? 'text-zinc-400' : 'text-zinc-500'}`}>
                 Results will appear here
               </p>
-              <p className={`text-xs ${isDarkMode ? 'text-zinc-700' : 'text-zinc-300'}`}>
+              <p className={`text-sm ${isDarkMode ? 'text-zinc-500' : 'text-zinc-400'}`}>
                 Enter RTL code or a hardware description and generate
               </p>
             </motion.div>
@@ -600,13 +599,12 @@ const SvaGeneratorUI = () => {
               animate={{ opacity: 1, x: 0 }}
               exit={{ opacity: 0, x: 16 }}
               transition={{ duration: 0.4, ease: 'easeOut' }}
-              className="flex flex-col gap-0"
+              className="flex flex-col flex-1 h-full"
             >
               {/* Panel header */}
-              <div className={`flex items-center justify-between px-6 py-4 rounded-t-2xl border-b transition-colors duration-300
-                ${isDarkMode ? 'bg-[#1c1c1c] border-zinc-800' : 'bg-zinc-50 border-zinc-100'}`}>
+              <div className={`flex items-center justify-between px-8 py-4 border-b transition-colors duration-300 flex-shrink-0 backdrop-blur-md
+                ${isDarkMode ? 'bg-white/[0.02] border-white/5' : 'bg-white/40 border-black/5'}`}>
                 <div className="flex items-center gap-2.5">
-                  <div className={`w-2 h-2 rounded-full ${isDarkMode ? 'bg-white' : 'bg-zinc-950'}`} />
                   <h2 className={`text-sm font-semibold ${isDarkMode ? 'text-white' : 'text-zinc-900'}`}
                     style={{ fontFamily: 'Funnel Display, sans-serif' }}>
                     Generated Assertions
@@ -615,32 +613,34 @@ const SvaGeneratorUI = () => {
                 <button
                   onClick={() => navigator.clipboard.writeText(tabs.find(t => t.key === activeTab)?.content || '')}
                   className={`text-xs font-semibold px-3 py-1.5 rounded-lg border transition-all active:scale-95
-                    ${isDarkMode ? 'bg-zinc-800 border-zinc-700 text-zinc-300 hover:text-white hover:border-zinc-500' : 'bg-white border-zinc-200 text-zinc-500 hover:text-zinc-900 hover:border-zinc-400'}`}
+                    ${isDarkMode ? 'bg-white/5 border-white/10 text-zinc-300 hover:text-white hover:bg-white/10' : 'bg-white border-zinc-200 text-zinc-500 hover:text-zinc-900 hover:bg-zinc-50'}`}
                 >
                   Copy
                 </button>
               </div>
 
               {/* Tabs */}
-              <div className={`flex gap-1 px-5 pt-4 pb-0 border-x transition-colors duration-300
-                ${isDarkMode ? 'border-zinc-800 bg-[#141414]' : 'border-zinc-200 bg-white'}`}>
+              <div className={`flex gap-1 px-8 pt-4 pb-0 border-b transition-colors duration-300 flex-shrink-0 backdrop-blur-md
+                ${isDarkMode ? 'bg-white/[0.02] border-white/5' : 'bg-white/40 border-black/5'}`}>
                 {tabs.map(tab => (
                   <button
                     key={tab.key}
                     onClick={() => setActiveTab(tab.key)}
-                    className={`px-4 py-1.5 rounded-lg text-sm font-medium transition-all duration-150
+                    className={`px-4 py-2 rounded-t-lg text-sm font-medium transition-all duration-150 relative
                       ${activeTab === tab.key
-                        ? (isDarkMode ? 'bg-white text-zinc-950' : 'bg-zinc-950 text-white')
-                        : (isDarkMode ? 'text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800/50' : 'text-zinc-500 hover:text-zinc-800 hover:bg-zinc-100')}`}
+                        ? (isDarkMode ? 'bg-white/10 text-white' : 'bg-black/5 text-zinc-900 shadow-sm backdrop-blur-md')
+                        : (isDarkMode ? 'text-zinc-400 hover:text-zinc-200 hover:bg-white/5' : 'text-zinc-500 hover:text-zinc-800 hover:bg-black/[0.03]')}`}
                   >
                     {tab.label}
+                    {activeTab === tab.key && (
+                      <div className={`absolute top-0 left-0 right-0 h-[2px] bg-emerald-500 rounded-t-full ${isDarkMode ? 'shadow-[0_0_8px_rgba(16,185,129,0.5)]' : ''}`} />
+                    )}
                   </button>
                 ))}
               </div>
 
               {/* Tab content */}
-              <div className={`rounded-b-2xl border transition-colors duration-300
-                ${isDarkMode ? 'border-zinc-800 bg-[#141414]' : 'border-zinc-200 bg-white'}`}>
+              <div className="flex-1 overflow-y-auto">
                 <AnimatePresence mode="wait">
                   {tabs.map(tab =>
                     activeTab === tab.key ? (
@@ -650,7 +650,7 @@ const SvaGeneratorUI = () => {
                         animate={{ opacity: 1, y: 0 }}
                         exit={{ opacity: 0, y: -6 }}
                         transition={{ duration: 0.2 }}
-                        className="p-6"
+                        className="p-8"
                       >
                         <ReactMarkdown remarkPlugins={[remarkGfm]} components={mdRenderers}>
                           {tab.content}
