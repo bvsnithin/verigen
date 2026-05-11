@@ -2,6 +2,8 @@ import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
+import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
+import { vscDarkPlus, vs } from 'react-syntax-highlighter/dist/esm/styles/prism';
 
 // ─── Utility: strip LLM internal XML tags ────────────────────────────────────
 function cleanLLMOutput(raw) {
@@ -113,45 +115,73 @@ function CodeBlock({ children, language, isDarkMode }) {
     setTimeout(() => setCopied(false), 2000);
   };
 
+  const syntaxTheme = isDarkMode ? vscDarkPlus : vs;
+  const mapLanguage = (lang) => {
+    if (!lang) return 'text';
+    if (lang.toLowerCase() === 'systemverilog') return 'verilog';
+    return lang;
+  };
+
   return (
-    <div className={`rounded-xl overflow-hidden border my-3 transition-colors duration-300
-      ${isDarkMode ? 'border-zinc-800 bg-[#0a0a0a]' : 'border-zinc-200 bg-[#111111]'}`}>
+    <div className={`rounded-xl overflow-hidden border my-3 transition-colors duration-300 shadow-sm
+      ${isDarkMode ? 'border-zinc-800 bg-[#1e1e1e]' : 'border-zinc-200 bg-[#ffffff]'}`}>
       {language && (
         <div className={`flex items-center justify-between px-4 py-2.5 border-b transition-colors duration-300
-          ${isDarkMode ? 'bg-[#141414] border-zinc-800' : 'bg-[#1a1a1a] border-zinc-800'}`}>
-          <span className="text-[11px] font-bold text-zinc-400 uppercase tracking-widest"
-            style={{ fontFamily: "'Intel One Mono', monospace" }}>
+          ${isDarkMode ? 'bg-[#181818] border-zinc-800' : 'bg-zinc-50 border-zinc-200'}`}>
+          <span className={`text-[11px] font-bold uppercase tracking-widest
+            ${isDarkMode ? 'text-zinc-400' : 'text-zinc-500'}`}
+            style={{ fontFamily: "Consolas, Monaco, 'Andale Mono', 'Ubuntu Mono', monospace" }}>
             {language}
           </span>
           <button
             onClick={handleCopy}
-            className="text-[11px] font-medium text-zinc-500 hover:text-zinc-200 transition-colors px-2.5 py-1 rounded-md hover:bg-white/10"
+            className={`text-[11px] font-medium px-2.5 py-1 rounded-md transition-colors
+              ${isDarkMode ? 'text-zinc-400 hover:text-zinc-200 hover:bg-white/10' : 'text-zinc-500 hover:text-zinc-800 hover:bg-zinc-950/5'}`}
           >
             {copied ? 'Copied' : 'Copy'}
           </button>
         </div>
       )}
-      <pre className="p-5 overflow-x-auto text-[13px] text-zinc-200 leading-relaxed"
-        style={{ fontFamily: "'Intel One Mono', monospace" }}>
-        <code>{children}</code>
-      </pre>
+      <SyntaxHighlighter
+        language={mapLanguage(language)}
+        style={syntaxTheme}
+        customStyle={{
+          margin: 0,
+          padding: '1.25rem',
+          fontSize: '13px',
+          backgroundColor: 'transparent',
+          fontVariantLigatures: 'none'
+        }}
+        codeTagProps={{
+          style: { 
+            fontFamily: "Consolas, Monaco, 'Andale Mono', 'Ubuntu Mono', monospace",
+            fontVariantLigatures: 'none'
+          }
+        }}
+      >
+        {children}
+      </SyntaxHighlighter>
     </div>
   );
 }
 
 // ─── Markdown renderer components ────────────────────────────────────────────
 const getMdComponents = (isDarkMode) => ({
-  code({ inline, className, children }) {
-    const lang = (className || '').replace('language-', '');
-    if (inline) {
+  code({ className, children, node, ...props }) {
+    const match = /language-(\w+)/.exec(className || '');
+    const isInline = !match && !String(children).includes('\n');
+
+    if (isInline) {
       return (
         <code className={`text-[13px] px-1.5 py-0.5 rounded-md border transition-colors duration-300
           ${isDarkMode ? 'bg-zinc-800 border-zinc-700 text-zinc-300' : 'bg-zinc-100 border-zinc-200 text-zinc-800'}`}
-          style={{ fontFamily: "'Intel One Mono', monospace" }}>
+          style={{ fontFamily: "Consolas, Monaco, 'Andale Mono', 'Ubuntu Mono', monospace", fontVariantLigatures: 'none' }}
+          {...props}>
           {children}
         </code>
       );
     }
+    const lang = match ? match[1] : '';
     return <CodeBlock language={lang} isDarkMode={isDarkMode}>{String(children).trimEnd()}</CodeBlock>;
   },
   p({ children })          { return <p className={`text-[14px] leading-relaxed mb-3 last:mb-0 ${isDarkMode ? 'text-zinc-300' : 'text-zinc-700'}`}>{children}</p>; },
