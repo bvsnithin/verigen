@@ -5,9 +5,6 @@ __pycache__/
 *.egg-info/
 .env
 
-# Generated retrieval artifacts (rebuild with: python build_index.py)
-retrieval/
-
 # macOS
 .DS_Store
 

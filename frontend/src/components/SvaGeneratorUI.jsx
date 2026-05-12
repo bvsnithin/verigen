@@ -211,11 +211,14 @@ const SvaGeneratorUI = () => {
   const [history,      setHistory]      = useState([]);
   const [isHistoryOpen,setIsHistoryOpen]= useState(false);
   const [agentStates,  setAgentStates]  = useState({});
-  const abortRef = useRef(null);
+  const [showBanner,   setShowBanner]   = useState(() => localStorage.getItem('verigen_banner_dismissed') !== 'true');
+  const [isWakingUp,   setIsWakingUp]   = useState(false);
+  const abortRef   = useRef(null);
+  const wakeTimerRef = useRef(null);
 
   const fetchHistory = async () => {
     try {
-      const res = await fetch('http://localhost:8000/history');
+      const res = await fetch(`${import.meta.env.VITE_API_URL}/history`);
       if (res.ok) setHistory(await res.json());
     } catch (e) {
       console.error('Failed to fetch history', e);
@@ -234,12 +237,15 @@ const SvaGeneratorUI = () => {
     setOutput(null);
     setActiveTab('assertions');
     setAgentStates({});
+    setIsWakingUp(false);
+
+    wakeTimerRef.current = setTimeout(() => setIsWakingUp(true), 3000);
 
     try {
       const controller = new AbortController();
       abortRef.current = controller.signal;
 
-      const response = await fetch('http://localhost:8000/generate_assertions/stream', {
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/generate_assertions/stream`, {
         method:  'POST',
         headers: { 'Content-Type': 'application/json' },
         body:    JSON.stringify({ input_type: inputMode, content: inputValue }),
@@ -288,10 +294,12 @@ const SvaGeneratorUI = () => {
     } catch (error) {
       if (error.name !== 'AbortError') {
         setErrorStatus(
-          `Backend connection failed. Make sure the Python server is running on port 8000.\n\nDetails: ${error.message}`
+          `Backend connection failed.\n\nDetails: ${error.message}`
         );
       }
     } finally {
+      clearTimeout(wakeTimerRef.current);
+      setIsWakingUp(false);
       setIsGenerating(false);
     }
   };
@@ -310,6 +318,11 @@ const SvaGeneratorUI = () => {
     setIsHistoryOpen(false);
   };
 
+  const dismissBanner = () => {
+    localStorage.setItem('verigen_banner_dismissed', 'true');
+    setShowBanner(false);
+  };
+
   const isDone = !isGenerating && output !== null;
   const hasAgentActivity = Object.keys(agentStates).length > 0;
   const mdRenderers = getMdComponents(isDarkMode);
@@ -326,9 +339,38 @@ const SvaGeneratorUI = () => {
 
   return (
     <div
-      className={`h-screen overflow-hidden flex flex-col lg:flex-row transition-colors duration-500`}
+      className={`h-screen overflow-hidden flex flex-col lg:flex-row transition-colors duration-500 ${showBanner ? 'pt-[42px]' : ''}`}
       style={bgStyle}
     >
+      {/* ── Free-tier wake-up banner ── */}
+      <AnimatePresence>
+        {showBanner && (
+          <motion.div
+            initial={{ opacity: 0, y: -40 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -40 }}
+            transition={{ duration: 0.4, ease: 'easeOut' }}
+            className={`fixed top-0 left-0 right-0 z-[60] flex items-center justify-between gap-3 px-5 py-2.5 text-[12px] font-medium
+              ${isDarkMode
+                ? 'bg-amber-950/80 border-b border-amber-800/50 text-amber-300 backdrop-blur-md'
+                : 'bg-amber-50 border-b border-amber-200 text-amber-800'}`}
+          >
+            <div className="flex items-center gap-2">
+              <span>
+                VeriGen runs on free infrastructure. The first request may take up to <strong>30 seconds</strong> to wake up the server. Subsequent requests are fast.
+              </span>
+            </div>
+            <button
+              onClick={dismissBanner}
+              className={`flex-shrink-0 px-2.5 py-1 rounded-md font-semibold transition-colors
+                ${isDarkMode ? 'hover:bg-amber-800/40 text-amber-400' : 'hover:bg-amber-100 text-amber-700'}`}
+            >
+              Got it
+            </button>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       {/* ── History Sidebar ── */}
       <AnimatePresence>
         {isHistoryOpen && (
@@ -535,6 +577,29 @@ const SvaGeneratorUI = () => {
               </motion.button>
             )}
           </div>
+
+          {/* Wake-up hint during slow cold start */}
+          <AnimatePresence>
+            {isWakingUp && (
+              <motion.div
+                initial={{ opacity: 0, height: 0 }}
+                animate={{ opacity: 1, height: 'auto' }}
+                exit={{ opacity: 0, height: 0 }}
+                transition={{ duration: 0.3 }}
+                className={`rounded-xl border px-4 py-3 text-[12px] font-medium flex items-center gap-2
+                  ${isDarkMode
+                    ? 'bg-amber-950/30 border-amber-800/40 text-amber-400'
+                    : 'bg-amber-50 border-amber-200 text-amber-700'}`}
+              >
+                <motion.span
+                  animate={{ opacity: [1, 0.4, 1] }}
+                  transition={{ repeat: Infinity, duration: 1.4, ease: 'easeInOut' }}
+                >
+                </motion.span>
+                Server is waking up — this is normal on free hosting and only happens after a period of inactivity. Hang tight!
+              </motion.div>
+            )}
+          </AnimatePresence>
 
           {/* Pipeline timeline */}
           <AnimatePresence>
