@@ -7,10 +7,11 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 WORKDIR /app
 
 COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
 
-# Pre-download the embedding model so the first request isn't slow
-RUN python -c "from sentence_transformers import SentenceTransformer; SentenceTransformer('all-MiniLM-L6-v2')"
+# Install CPU-only PyTorch before everything else — avoids pulling the
+# massive CUDA build (~2GB) that sentence-transformers would otherwise fetch
+RUN pip install --no-cache-dir torch --index-url https://download.pytorch.org/whl/cpu
+RUN pip install --no-cache-dir -r requirements.txt
 
 COPY . .
 
