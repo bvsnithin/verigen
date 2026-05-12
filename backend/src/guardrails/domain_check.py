@@ -51,4 +51,4 @@ async def check_input_domain(user_input: str) -> tuple[bool, str]:
         answer = response["message"]["content"].strip().upper()
         return (True, "") if answer.startswith("YES") else (False, _REJECTION)
     except Exception:
-        return True, ""
+        return False, _REJECTION

@@ -213,12 +213,20 @@ const SvaGeneratorUI = () => {
   const [agentStates,  setAgentStates]  = useState({});
   const [showBanner,   setShowBanner]   = useState(() => localStorage.getItem('verigen_banner_dismissed') !== 'true');
   const [isWakingUp,   setIsWakingUp]   = useState(false);
-  const abortRef   = useRef(null);
+  const abortRef     = useRef(null);
   const wakeTimerRef = useRef(null);
+
+  const sessionId = useState(() => {
+    let id = localStorage.getItem('verigen_session_id');
+    if (!id) { id = crypto.randomUUID(); localStorage.setItem('verigen_session_id', id); }
+    return id;
+  })[0];
+
+  const sessionHeaders = { 'X-Session-ID': sessionId };
 
   const fetchHistory = async () => {
     try {
-      const res = await fetch(`${import.meta.env.VITE_API_URL}/history`);
+      const res = await fetch(`${import.meta.env.VITE_API_URL}/history`, { headers: sessionHeaders });
       if (res.ok) setHistory(await res.json());
     } catch (e) {
       console.error('Failed to fetch history', e);
@@ -247,7 +255,7 @@ const SvaGeneratorUI = () => {
 
       const response = await fetch(`${import.meta.env.VITE_API_URL}/generate_assertions/stream`, {
         method:  'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...sessionHeaders },
         body:    JSON.stringify({ input_type: inputMode, content: inputValue }),
         signal:  controller.signal,
       });

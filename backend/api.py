@@ -12,8 +12,8 @@ SSE event types on /generate_assertions/stream:
 REST endpoints:
   POST   /generate_assertions/stream  — streaming SSE generation
   POST   /generate_assertions         — legacy synchronous
-  GET    /history                     — list of past generations (newest first)
-  DELETE /history/{id}               — remove a history entry
+  GET    /history                     — session-scoped history (newest first)
+  DELETE /history/{id}               — remove a history entry (session-scoped)
   GET    /health
 """
 
@@ -26,7 +26,7 @@ import queue
 from contextlib import asynccontextmanager
 from datetime import datetime, timezone
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 from typing import Optional
@@ -39,9 +39,9 @@ from src.guardrails import check_input_domain
 
 sva_pipeline: SVAGeneratorPipeline | None = None
 
-# In-memory history — list of dicts, newest first
-_history: list[dict] = []
-MAX_HISTORY = 50
+# Session-scoped history — keyed by session ID, newest first per session
+_history: dict[str, list[dict]] = {}
+MAX_HISTORY_PER_SESSION = 50
 
 
 @asynccontextmanager
@@ -62,10 +62,10 @@ async def lifespan(app: FastAPI):
 app = FastAPI(
     title="VeriGen SVA Backend",
     description=(
-        "Multi-agent backend: NeMo Guardrails → RAG → Generator → Verilator Lint → Summarizer. "
-        "Includes session history."
+        "Multi-agent backend: RAG → Generator → Verilator Lint → Summarizer. "
+        "Session-scoped history."
     ),
-    version="2.2.0",
+    version="2.3.0",
     lifespan=lifespan,
 )
 
@@ -106,53 +106,52 @@ class HistoryEntry(BaseModel):
     id: str
     timestamp: str
     input_type: str
-    content: str           # full user input
+    content: str
     assertions: str
     explanation: str
     summary: str
-    lint_clean: bool       # True if final output passed Verilator lint
-    attempts: int          # how many generation attempts were needed
+    lint_clean: bool
+    attempts: int
 
 
-# ── SSE helpers ────────────────────────────────────────────────────────────────
+# ── Helpers ────────────────────────────────────────────────────────────────────
 
 def _sse(event: str, data: dict) -> str:
     return f"event: {event}\ndata: {json.dumps(data)}\n\n"
 
 
-# ── History helpers ────────────────────────────────────────────────────────────
+def _get_session_id(request: Request) -> str:
+    return request.headers.get("X-Session-ID", "anonymous")
 
-def _save_to_history(request: AssertionRequest, result: dict) -> None:
-    """Prepend a new entry to the in-memory history, capping at MAX_HISTORY."""
+
+def _save_to_history(session_id: str, request: AssertionRequest, result: dict) -> None:
     entry = {
-        "id":              str(uuid.uuid4()),
-        "timestamp":       datetime.now(timezone.utc).isoformat(),
-        "input_type":      request.input_type,
-        "content":         request.content,
-        "assertions":      result["assertions"],
-        "explanation":     result["explanation"],
-        "summary":         result["summary"],
-        "lint_clean":      result.get("lint_clean", False),
-        "attempts":        result.get("attempts", 1),
+        "id":          str(uuid.uuid4()),
+        "timestamp":   datetime.now(timezone.utc).isoformat(),
+        "input_type":  request.input_type,
+        "content":     request.content,
+        "assertions":  result["assertions"],
+        "explanation": result["explanation"],
+        "summary":     result["summary"],
+        "lint_clean":  result.get("lint_clean", False),
+        "attempts":    result.get("attempts", 1),
     }
-    _history.insert(0, entry)
-    if len(_history) > MAX_HISTORY:
-        _history.pop()
+    session = _history.setdefault(session_id, [])
+    session.insert(0, entry)
+    if len(session) > MAX_HISTORY_PER_SESSION:
+        session.pop()
 
 
 # ── Streaming endpoint ─────────────────────────────────────────────────────────
 
 @app.post("/generate_assertions/stream")
-async def generate_assertions_stream(request: AssertionRequest):
-    """
-    Streaming SSE endpoint.
-    Emits agent_event frames per agent, then a 'result' frame on completion.
-    Saves the result to history automatically.
-    """
+async def generate_assertions_stream(request: Request, body: AssertionRequest):
     if sva_pipeline is None:
         raise HTTPException(status_code=500, detail="Pipeline not initialised.")
 
-    allowed, rejection_msg = await check_input_domain(request.content)
+    session_id = _get_session_id(request)
+
+    allowed, rejection_msg = await check_input_domain(body.content)
     if not allowed:
         async def _blocked():
             yield _sse("error", {"message": rejection_msg})
@@ -172,10 +171,10 @@ async def generate_assertions_stream(request: AssertionRequest):
         def run_pipeline():
             try:
                 result = sva_pipeline.generate_assertions(
-                    input_type=request.input_type,
-                    content=request.content,
-                    clock_hint=request.clock_hint,
-                    synchronous_filter=request.synchronous_filter,
+                    input_type=body.input_type,
+                    content=body.content,
+                    clock_hint=body.clock_hint,
+                    synchronous_filter=body.synchronous_filter,
                     event_callback=callback,
                 )
                 evt_queue.put(("result", result))
@@ -187,8 +186,8 @@ async def generate_assertions_stream(request: AssertionRequest):
         yield _sse("status", {
             "message": (
                 "🔍 Classifying RTL and loading knowledge base…"
-                if request.input_type == "rtl"
-                else "📚 Loading knowledge base…"
+                if body.input_type == "rtl"
+                else "Loading knowledge base…"
             )
         })
 
@@ -211,8 +210,7 @@ async def generate_assertions_stream(request: AssertionRequest):
             elif isinstance(item, tuple):
                 event_name, data = item
                 if event_name == "result":
-                    # Save to history (non-blocking — already in async context)
-                    _save_to_history(request, data)
+                    _save_to_history(session_id, body, data)
                     yield _sse("result", {
                         "assertions":  data["assertions"],
                         "explanation": data["explanation"],
@@ -233,21 +231,20 @@ async def generate_assertions_stream(request: AssertionRequest):
 # ── Legacy synchronous endpoint ────────────────────────────────────────────────
 
 @app.post("/generate_assertions", response_model=AssertionResponse)
-async def generate_assertions_endpoint(request: AssertionRequest):
-    """Synchronous (non-streaming) endpoint — kept for backwards compatibility."""
+async def generate_assertions_endpoint(request: Request, body: AssertionRequest):
     if sva_pipeline is None:
         raise HTTPException(status_code=500, detail="Pipeline not initialised.")
-    allowed, rejection_msg = await check_input_domain(request.content)
+    allowed, rejection_msg = await check_input_domain(body.content)
     if not allowed:
         raise HTTPException(status_code=422, detail=rejection_msg)
     try:
         result = sva_pipeline.generate_assertions(
-            input_type=request.input_type,
-            content=request.content,
-            clock_hint=request.clock_hint,
-            synchronous_filter=request.synchronous_filter,
+            input_type=body.input_type,
+            content=body.content,
+            clock_hint=body.clock_hint,
+            synchronous_filter=body.synchronous_filter,
         )
-        _save_to_history(request, result)
+        _save_to_history(_get_session_id(request), body, result)
         return AssertionResponse(
             assertions=result["assertions"],
             explanation=result["explanation"],
@@ -260,28 +257,26 @@ async def generate_assertions_endpoint(request: AssertionRequest):
 # ── History endpoints ──────────────────────────────────────────────────────────
 
 @app.get("/history", response_model=list[HistoryEntry])
-def get_history():
-    """Return all history entries, newest first."""
-    return _history
+def get_history(request: Request):
+    session_id = _get_session_id(request)
+    return _history.get(session_id, [])
 
 
 @app.delete("/history/{entry_id}")
-def delete_history_entry(entry_id: str):
-    """Remove a single history entry by ID."""
-    global _history
-    before = len(_history)
-    _history = [e for e in _history if e["id"] != entry_id]
-    if len(_history) == before:
+def delete_history_entry(entry_id: str, request: Request):
+    session_id = _get_session_id(request)
+    session = _history.get(session_id, [])
+    before = len(session)
+    _history[session_id] = [e for e in session if e["id"] != entry_id]
+    if len(_history[session_id]) == before:
         raise HTTPException(status_code=404, detail=f"History entry '{entry_id}' not found.")
     return {"deleted": entry_id}
 
 
 @app.delete("/history")
-def clear_history():
-    """Remove all history entries."""
-    global _history
-    count = len(_history)
-    _history = []
+def clear_history(request: Request):
+    session_id = _get_session_id(request)
+    count = len(_history.pop(session_id, []))
     return {"cleared": count}
 
 
@@ -289,15 +284,15 @@ def clear_history():
 
 @app.get("/health")
 def health_check():
+    total = sum(len(v) for v in _history.values())
     return {
         "status": "healthy",
         "pipeline_ready": sva_pipeline is not None,
-        "history_count": len(_history),
-        "version": "2.2.0",
+        "history_count": total,
+        "version": "2.3.0",
     }
 
 
 if __name__ == "__main__":
     import uvicorn
-    # reload=False in production — use `uvicorn api:app --reload` only when developing
     uvicorn.run("api:app", host="0.0.0.0", port=8000, reload=False)
